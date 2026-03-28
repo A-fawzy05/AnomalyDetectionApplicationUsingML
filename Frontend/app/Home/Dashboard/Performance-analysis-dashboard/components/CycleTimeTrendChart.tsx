@@ -15,13 +15,31 @@ interface CycleTimeTrendChartProps {
 }
 
 const CycleTimeTrendChart = ({ data, isIndustryBenchmark }: CycleTimeTrendChartProps) => {
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 shadow-lg">
+          <p className="font-serif font-semibold text-sm text-text-primary mb-2">{label}</p>
+          <div className="space-y-1 font-sans text-xs">
+            {payload.map((entry: any, index: number) => (
+              <p key={index} style={{ color: entry.color }}>
+                {entry.name}: <span className="font-medium text-text-primary">{entry.value}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="bg-card border border-border/30 rounded-md p-6">
+    <div className="bg-bg-secondary border border-border-primary rounded-xl p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
       <div className="mb-6">
-        <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
+        <h3 className="font-serif text-lg font-semibold text-text-primary mb-1">
           Cycle Time Trends & Throughput
         </h3>
-        <p className="font-caption text-sm text-muted-foreground">
+        <p className="font-sans text-sm text-text-secondary">
           Average processing time with case volume overlay
         </p>
       </div>
@@ -29,38 +47,27 @@ const CycleTimeTrendChart = ({ data, isIndustryBenchmark }: CycleTimeTrendChartP
       <div className="w-full h-80" aria-label="Cycle time trends and throughput chart">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-primary)" />
             <XAxis 
               dataKey="period" 
-              stroke="#94a3b8"
-              style={{ fontSize: '12px', fontFamily: 'Inter' }}
+              stroke="var(--color-text-secondary)"
+              style={{ fontSize: '12px', fontFamily: 'var(--font-sans)' }}
             />
             <YAxis 
               yAxisId="left"
-              stroke="#94a3b8"
-              style={{ fontSize: '12px', fontFamily: 'Inter' }}
-              label={{ value: 'Days', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+              stroke="var(--color-text-secondary)"
+              style={{ fontSize: '12px', fontFamily: 'var(--font-sans)' }}
+              label={{ value: 'Days', angle: -90, position: 'insideLeft', fill: 'var(--color-text-secondary)' }}
             />
             <YAxis 
               yAxisId="right"
               orientation="right"
-              stroke="#94a3b8"
-              style={{ fontSize: '12px', fontFamily: 'Inter' }}
-              label={{ value: 'Cases', angle: 90, position: 'insideRight', fill: '#94a3b8' }}
+              stroke="var(--color-text-secondary)"
+              style={{ fontSize: '12px', fontFamily: 'var(--font-sans)' }}
+              label={{ value: 'Cases', angle: 90, position: 'insideRight', fill: 'var(--color-text-secondary)' }}
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#1e293b', 
-                border: '1px solid #475569',
-                borderRadius: '6px',
-                fontFamily: 'Inter',
-                fontSize: '12px'
-              }}
-              labelStyle={{ color: '#f8fafc' }}
-            />
-            <Legend 
-              wrapperStyle={{ fontFamily: 'Inter', fontSize: '12px' }}
-            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-text-secondary)' }} />
             <Bar 
               yAxisId="right"
               dataKey="throughput" 

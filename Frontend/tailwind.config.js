@@ -67,15 +67,22 @@ module.exports = {
           overlay: 'var(--color-surface-overlay)', /* slate-800 */
         },
         text: {
-          primary: 'var(--color-text-primary)', /* slate-50 */
-          secondary: 'var(--color-text-secondary)', /* slate-400 */
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
         },
+        bg: {
+          primary: 'var(--color-bg-primary)',
+          secondary: 'var(--color-bg-secondary)',
+        },
+        'border-primary': 'var(--color-border-primary)',
+        'nobel-gold': 'var(--color-nobel-gold)',
       },
       fontFamily: {
-        sans: ['Source Sans 3', 'sans-serif'],
-        heading: ['IBM Plex Sans', 'sans-serif'],
-        caption: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['"Styrene"', 'sans-serif'],
+        serif: ['"Galaxie Copernicus"', '"Tiempos Text"', 'serif'],
+        heading: ['"Galaxie Copernicus"', 'serif'],
+        caption: ['"Styrene"', 'sans-serif'],
+        mono: ['"Styrene"', 'monospace'],
       },
       fontSize: {
         'h1': ['2.25rem', { lineHeight: '1.2', fontWeight: '700' }],
@@ -85,16 +92,7 @@ module.exports = {
         'h5': ['1.125rem', { lineHeight: '1.5', fontWeight: '500' }],
         'caption': ['0.875rem', { lineHeight: '1.4', letterSpacing: '0.025em' }],
       },
-      spacing: {
-        'xs': 'var(--spacing-xs)',
-        'sm': 'var(--spacing-sm)',
-        'md': 'var(--spacing-md)',
-        'lg': 'var(--spacing-lg)',
-        'xl': 'var(--spacing-xl)',
-        '2xl': 'var(--spacing-2xl)',
-        '3xl': 'var(--spacing-3xl)',
-        '4xl': 'var(--spacing-4xl)',
-      },
+
       borderRadius: {
         'sm': 'var(--radius-sm)',
         'md': 'var(--radius-md)',
@@ -144,12 +142,17 @@ module.exports = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'pulse-subtle': 'pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'slide-down': 'slide-down 0.3s ease-out',
         'slide-up': 'slide-up 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-out',
+        'fade-in-up': 'fade-in-up 0.6s ease-out',
       },
     },
   },

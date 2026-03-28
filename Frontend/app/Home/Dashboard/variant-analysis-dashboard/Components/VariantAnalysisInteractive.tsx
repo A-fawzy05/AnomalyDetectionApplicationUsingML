@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '../../../components/common/AlertNotificationbanner';
+import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
 import VariantOverviewCards from './VariantOverviewCards';
 import VariantFrequencyChart from './VariantFrequencyChart';
@@ -242,7 +242,7 @@ const VariantAnalysisInteractive = () => {
   const anomalousCases = Math.round(totalCases * ((selectedVariantData?.anomalyRate || 0) / 100));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
       <AlertNotificationBanner alerts={alerts} onDismiss={handleDismissAlert} />
       
       <NavigationSidebar
@@ -253,12 +253,12 @@ const VariantAnalysisInteractive = () => {
       <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
         <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading} />
 
-        <div className="p-lg">
-          <div className="mb-8">
-            <h1 className="font-heading text-3xl font-semibold text-foreground mb-2">
+        <div className="p-8">
+          <div className="mb-8 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
+            <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">
               Variant Analysis Dashboard
             </h1>
-            <p className="font-caption text-base text-muted-foreground">
+            <p className="font-sans text-base text-text-secondary">
               Process deviation analysis and conformance tracking for audit and optimization
             </p>
           </div>

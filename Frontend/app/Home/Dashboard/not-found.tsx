@@ -2,13 +2,13 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import Icon from '../components/UI/AppIcon';
+import Icon from '@/components/UI/AppIcon';
 
 export default function NotFound() {
     const router = useRouter();
 
     const handleGoHome = () => {
-        router?.push('/');
+        router?.push('/Home');
     };
 
     const handleGoBack = () => {

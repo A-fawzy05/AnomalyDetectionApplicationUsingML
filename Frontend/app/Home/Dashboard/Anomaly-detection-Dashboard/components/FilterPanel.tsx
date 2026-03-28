@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Icon from '../../../components/UI/AppIcon';
+import Icon from '@/components/UI/AppIcon';
 
 interface FilterOption {
   id: string;
@@ -64,13 +64,13 @@ const FilterPanel = ({
     selectedAnomalyTypes.length + selectedSeverityLevels.length + selectedSuppliers.length;
 
   return (
-    <div className="bg-card border border-border/30 rounded-md">
-      <div className="flex items-center justify-between p-4 border-b border-border/30">
+    <div className="bg-bg-secondary border border-border-primary rounded-xl">
+      <div className="flex items-center justify-between p-4 border-b border-border-primary">
         <div className="flex items-center gap-2">
-          <Icon name="FunnelIcon" size={20} className="text-muted-foreground" />
-          <h3 className="font-heading text-base font-semibold text-foreground">Filters</h3>
+          <Icon name="FunnelIcon" size={20} className="text-text-secondary" />
+          <h3 className="font-serif text-base font-semibold text-text-primary">Filters</h3>
           {totalFiltersApplied > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-primary text-primary-foreground font-caption text-xs font-medium">
+            <span className="px-2 py-0.5 rounded-full bg-nobel-gold text-white font-sans text-xs font-medium">
               {totalFiltersApplied}
             </span>
           )}
@@ -78,27 +78,27 @@ const FilterPanel = ({
         {totalFiltersApplied > 0 && (
           <button
             onClick={onClearAll}
-            className="font-caption text-xs text-accent hover:text-accent/80 transition-smooth"
+            className="font-sans text-xs text-nobel-gold hover:text-nobel-gold/80 transition-colors"
           >
             Clear All
           </button>
         )}
       </div>
 
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border-primary">
         {/* Anomaly Types */}
         <div>
           <button
             onClick={() => toggleSection('anomalyTypes')}
-            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-smooth"
+            className="w-full flex items-center justify-between p-4 hover:bg-bg-primary/50 transition-colors"
           >
-            <span className="font-caption text-sm font-medium text-foreground">
+            <span className="font-sans text-sm font-medium text-text-primary">
               Anomaly Types
             </span>
             <Icon
               name={expandedSections.has('anomalyTypes') ? 'ChevronUpIcon' : 'ChevronDownIcon'}
               size={16}
-              className="text-muted-foreground"
+              className="text-text-secondary"
             />
           </button>
           {expandedSections.has('anomalyTypes') && (
@@ -106,7 +106,7 @@ const FilterPanel = ({
               {anomalyTypes.map(type => (
                 <label
                   key={type.id}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-smooth"
+                  className="flex items-center gap-3 cursor-pointer hover:bg-bg-primary/50 p-2 rounded-lg transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -114,10 +114,10 @@ const FilterPanel = ({
                     onChange={() =>
                       handleCheckboxChange(type.id, selectedAnomalyTypes, onAnomalyTypeChange)
                     }
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                    className="w-4 h-4 rounded border-border-primary text-nobel-gold focus:ring-2 focus:ring-nobel-gold"
                   />
-                  <span className="flex-1 font-caption text-sm text-foreground">{type.label}</span>
-                  <span className="font-caption text-xs text-muted-foreground">{type.count}</span>
+                  <span className="flex-1 font-sans text-sm text-text-primary">{type.label}</span>
+                  <span className="font-sans text-xs text-text-secondary">{type.count}</span>
                 </label>
               ))}
             </div>
@@ -128,15 +128,15 @@ const FilterPanel = ({
         <div>
           <button
             onClick={() => toggleSection('severityLevels')}
-            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-smooth"
+            className="w-full flex items-center justify-between p-4 hover:bg-bg-primary/50 transition-colors"
           >
-            <span className="font-caption text-sm font-medium text-foreground">
+            <span className="font-sans text-sm font-medium text-text-primary">
               Severity Levels
             </span>
             <Icon
               name={expandedSections.has('severityLevels') ? 'ChevronUpIcon' : 'ChevronDownIcon'}
               size={16}
-              className="text-muted-foreground"
+              className="text-text-secondary"
             />
           </button>
           {expandedSections.has('severityLevels') && (
@@ -144,7 +144,7 @@ const FilterPanel = ({
               {severityLevels.map(level => (
                 <label
                   key={level.id}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-smooth"
+                  className="flex items-center gap-3 cursor-pointer hover:bg-bg-primary/50 p-2 rounded-lg transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -152,10 +152,10 @@ const FilterPanel = ({
                     onChange={() =>
                       handleCheckboxChange(level.id, selectedSeverityLevels, onSeverityLevelChange)
                     }
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                    className="w-4 h-4 rounded border-border-primary text-nobel-gold focus:ring-2 focus:ring-nobel-gold"
                   />
-                  <span className="flex-1 font-caption text-sm text-foreground">{level.label}</span>
-                  <span className="font-caption text-xs text-muted-foreground">{level.count}</span>
+                  <span className="flex-1 font-sans text-sm text-text-primary">{level.label}</span>
+                  <span className="font-sans text-xs text-text-secondary">{level.count}</span>
                 </label>
               ))}
             </div>
@@ -166,13 +166,13 @@ const FilterPanel = ({
         <div>
           <button
             onClick={() => toggleSection('suppliers')}
-            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-smooth"
+            className="w-full flex items-center justify-between p-4 hover:bg-bg-primary/50 transition-colors"
           >
-            <span className="font-caption text-sm font-medium text-foreground">Suppliers</span>
+            <span className="font-sans text-sm font-medium text-text-primary">Suppliers</span>
             <Icon
               name={expandedSections.has('suppliers') ? 'ChevronUpIcon' : 'ChevronDownIcon'}
               size={16}
-              className="text-muted-foreground"
+              className="text-text-secondary"
             />
           </button>
           {expandedSections.has('suppliers') && (
@@ -180,7 +180,7 @@ const FilterPanel = ({
               {suppliers.map(supplier => (
                 <label
                   key={supplier.id}
-                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-smooth"
+                  className="flex items-center gap-3 cursor-pointer hover:bg-bg-primary/50 p-2 rounded-lg transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -188,12 +188,12 @@ const FilterPanel = ({
                     onChange={() =>
                       handleCheckboxChange(supplier.id, selectedSuppliers, onSupplierChange)
                     }
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                    className="w-4 h-4 rounded border-border-primary text-nobel-gold focus:ring-2 focus:ring-nobel-gold"
                   />
-                  <span className="flex-1 font-caption text-sm text-foreground truncate">
+                  <span className="flex-1 font-sans text-sm text-text-primary truncate">
                     {supplier.label}
                   </span>
-                  <span className="font-caption text-xs text-muted-foreground">{supplier.count}</span>
+                  <span className="font-sans text-xs text-text-secondary">{supplier.count}</span>
                 </label>
               ))}
             </div>

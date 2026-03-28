@@ -1,0 +1,29 @@
+
+> anomalydetectionapp@0.1.0 build
+> next build
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\BUE\Year 3\Graudation project\project\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * D:\BUE\Year 3\Graudation project\project\Frontend\package-lock.json
+
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 5.4s
+  Running TypeScript ...
+Failed to compile.
+
+.next/dev/types/validator.ts:51:39
+Type error: File 'D:/BUE/Year 3/Graudation project/project/Frontend/app/Performance-analysis-dashboard/page.tsx' is not a module.
+
+[0m [90m 49 |[39m {
+ [90m 50 |[39m   type __IsExpected[33m<[39m[33mSpecific[39m [36mextends[39m [33mAppPageConfig[39m[33m<[39m[32m"/Performance-analysis-dashboard"[39m[33m>>[39m [33m=[39m [33mSpecific[39m
+[31m[1m>[22m[39m[90m 51 |[39m   [36mconst[39m handler [33m=[39m {} [36mas[39m [36mtypeof[39m [36mimport[39m([32m"../../../app/Performance-analysis-dashboard/page.js"[39m)
+ [90m    |[39m                                       [31m[1m^[22m[39m
+ [90m 52 |[39m   type __Check [33m=[39m __IsExpected[33m<[39m[36mtypeof[39m handler[33m>[39m
+ [90m 53 |[39m   [90m// @ts-ignore[39m
+ [90m 54 |[39m   type __Unused [33m=[39m __Check[0m
+Next.js build worker exited with code: 1 and signal: null

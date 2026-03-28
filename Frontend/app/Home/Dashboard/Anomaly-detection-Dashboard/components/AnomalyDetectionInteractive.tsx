@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '../../../components/common/AlertNotificationbanner';
+import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
 import KPIMetricCard from './KPIMetricCard';
 import AnomalyTableRow from './anomalyTableRow';
 import RealTimeAnomalyFeed from './RealTimeAnomalyFeed';
 import ProcessMapVisualization from './ProcessMapVisualization';
 import FilterPanel from './FilterPanel';
-import Icon from '../../../components/UI/AppIcon';
+import Icon from '@/components/UI/AppIcon';
 
 interface KPIData {
   totalCases: number;
@@ -304,7 +304,7 @@ const AnomalyDetectionInteractive = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
       <AlertNotificationBanner alerts={alerts} />
       <NavigationSidebar
         isCollapsed={isSidebarCollapsed}
@@ -314,19 +314,19 @@ const AnomalyDetectionInteractive = () => {
       <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
         <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading} />
 
-        <div className="p-lg">
+        <div className="p-8">
           {/* Page Title */}
-          <div className="mb-lg">
-            <h1 className="font-heading text-3xl font-bold text-foreground mb-2">
+          <div className="mb-8 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
+            <h1 className="font-serif text-3xl font-bold text-text-primary mb-2">
               Anomaly Detection Dashboard
             </h1>
-            <p className="font-caption text-base text-muted-foreground">
+            <p className="font-sans text-base text-text-secondary">
               Real-time monitoring and immediate response hub for procurement irregularities
             </p>
           </div>
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <KPIMetricCard
               title="Total Cases"
               value={kpiData.totalCases.toLocaleString()}
@@ -335,6 +335,7 @@ const AnomalyDetectionInteractive = () => {
               icon="DocumentTextIcon"
               sparklineData={kpiData.sparklines.totalCases}
               status="neutral"
+              delay={0}
             />
             <KPIMetricCard
               title="Anomalous Cases"
@@ -344,6 +345,7 @@ const AnomalyDetectionInteractive = () => {
               icon="ExclamationTriangleIcon"
               sparklineData={kpiData.sparklines.anomalousCases}
               status="error"
+              delay={100}
             />
             <KPIMetricCard
               title="Anomaly Rate"
@@ -353,6 +355,7 @@ const AnomalyDetectionInteractive = () => {
               icon="ChartBarIcon"
               sparklineData={kpiData.sparklines.anomalyRate}
               status="warning"
+              delay={200}
             />
             <KPIMetricCard
               title="Avg Processing Time"
@@ -362,6 +365,7 @@ const AnomalyDetectionInteractive = () => {
               icon="ClockIcon"
               sparklineData={kpiData.sparklines.avgProcessingTime}
               status="success"
+              delay={300}
             />
           </div>
 
@@ -385,13 +389,13 @@ const AnomalyDetectionInteractive = () => {
 
             {/* Middle Column - Anomaly Table */}
             <div className="lg:col-span-6">
-              <div className="bg-card border border-border/30 rounded-md">
-                <div className="flex items-center justify-between p-4 border-b border-border/30">
-                  <h3 className="font-heading text-base font-semibold text-foreground">
+              <div className="bg-bg-secondary border border-border-primary rounded-xl">
+                <div className="flex items-center justify-between p-4 border-b border-border-primary">
+                  <h3 className="font-serif text-base font-semibold text-text-primary">
                     Anomaly Cases
                   </h3>
                   <div className="flex items-center gap-2">
-                    <span className="font-caption text-sm text-muted-foreground">
+                    <span className="font-sans text-sm text-text-secondary">
                       {anomalyCases.length} results
                     </span>
                   </div>
@@ -399,12 +403,12 @@ const AnomalyDetectionInteractive = () => {
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-muted/50 border-b border-border/30">
+                    <thead className="bg-bg-primary/50 border-b border-border-primary">
                       <tr>
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('caseId')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Case ID
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -413,7 +417,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('supplier')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Supplier
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -422,7 +426,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('amount')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Amount
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -431,7 +435,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('anomalyType')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Anomaly Type
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -440,7 +444,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('severityScore')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Severity
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -449,7 +453,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('status')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Status
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -458,7 +462,7 @@ const AnomalyDetectionInteractive = () => {
                         <th className="px-4 py-3 text-left">
                           <button
                             onClick={() => handleSort('timestamp')}
-                            className="flex items-center gap-2 font-caption text-sm font-medium text-muted-foreground hover:text-foreground transition-smooth"
+                            className="flex items-center gap-2 font-sans text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                           >
                             Time
                             <Icon name="ChevronUpDownIcon" size={16} />
@@ -484,15 +488,15 @@ const AnomalyDetectionInteractive = () => {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between p-4 border-t border-border/30">
-                  <span className="font-caption text-sm text-muted-foreground">
+                <div className="flex items-center justify-between p-4 border-t border-border-primary">
+                  <span className="font-sans text-sm text-text-secondary">
                     Showing 1-8 of {anomalyCases.length}
                   </span>
                   <div className="flex items-center gap-2">
-                    <button className="px-3 py-2 rounded-md bg-muted hover:bg-muted/80 transition-smooth font-caption text-sm font-medium text-foreground">
+                    <button className="px-3 py-2 rounded-lg bg-bg-primary hover:bg-bg-primary/80 transition-colors font-sans text-sm font-medium text-text-primary border border-border-primary">
                       Previous
                     </button>
-                    <button className="px-3 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth font-caption text-sm font-medium">
+                    <button className="px-3 py-2 rounded-lg bg-nobel-gold text-white hover:bg-nobel-gold/90 transition-colors font-sans text-sm font-medium">
                       Next
                     </button>
                   </div>

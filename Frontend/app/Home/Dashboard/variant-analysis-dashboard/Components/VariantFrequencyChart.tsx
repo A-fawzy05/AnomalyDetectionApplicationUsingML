@@ -36,19 +36,19 @@ const VariantFrequencyChart = ({ data, onVariantClick }: VariantFrequencyChartPr
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-popover border border-border/30 rounded-md p-4 shadow-lg">
-          <p className="font-heading font-semibold text-sm text-foreground mb-2">
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 shadow-lg">
+          <p className="font-serif font-semibold text-sm text-text-primary mb-2">
             {data.name}
           </p>
-          <div className="space-y-1 font-caption text-xs">
-            <p className="text-muted-foreground">
-              Frequency: <span className="text-foreground font-medium">{data.frequency}%</span>
+          <div className="space-y-1 font-sans text-xs">
+            <p className="text-text-secondary">
+              Frequency: <span className="text-text-primary font-medium">{data.frequency}%</span>
             </p>
-            <p className="text-muted-foreground">
-              Anomaly Rate: <span className="text-foreground font-medium">{data.anomalyRate}%</span>
+            <p className="text-text-secondary">
+              Anomaly Rate: <span className="text-text-primary font-medium">{data.anomalyRate}%</span>
             </p>
-            <p className="text-muted-foreground">
-              Cases: <span className="text-foreground font-medium">{data.caseCount.toLocaleString()}</span>
+            <p className="text-text-secondary">
+              Cases: <span className="text-text-primary font-medium">{data.caseCount.toLocaleString()}</span>
             </p>
           </div>
         </div>
@@ -58,28 +58,28 @@ const VariantFrequencyChart = ({ data, onVariantClick }: VariantFrequencyChartPr
   };
 
   return (
-    <div className="bg-card border border-border/30 rounded-lg p-6">
+    <div className="bg-bg-secondary border border-border-primary rounded-xl p-6 opacity-0 animate-fade-in-up" style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground">
+          <h2 className="font-serif text-lg font-semibold text-text-primary">
             Variant Frequency vs Anomaly Rate
           </h2>
-          <p className="font-caption text-sm text-muted-foreground mt-1">
+          <p className="font-sans text-sm text-text-secondary mt-1">
             Bubble size represents case volume
           </p>
         </div>
-        <div className="flex items-center gap-4 font-caption text-xs">
+        <div className="flex items-center gap-4 font-sans text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-success" />
-            <span className="text-muted-foreground">&lt; 8%</span>
+            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            <span className="text-text-secondary">&lt; 8%</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-warning" />
-            <span className="text-muted-foreground">8-15%</span>
+            <div className="w-3 h-3 rounded-full bg-amber-500" />
+            <span className="text-text-secondary">8-15%</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-error" />
-            <span className="text-muted-foreground">&gt; 15%</span>
+            <div className="w-3 h-3 rounded-full bg-red-500" />
+            <span className="text-text-secondary">&gt; 15%</span>
           </div>
         </div>
       </div>
@@ -87,24 +87,24 @@ const VariantFrequencyChart = ({ data, onVariantClick }: VariantFrequencyChartPr
       <div className="w-full h-96">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-primary)" />
             <XAxis
               type="number"
               dataKey="frequency"
               name="Frequency"
               unit="%"
-              stroke="#94a3b8"
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
-              label={{ value: 'Frequency (%)', position: 'insideBottom', offset: -10, fill: '#94a3b8' }}
+              stroke="var(--color-text-secondary)"
+              tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+              label={{ value: 'Frequency (%)', position: 'insideBottom', offset: -10, fill: 'var(--color-text-secondary)' }}
             />
             <YAxis
               type="number"
               dataKey="anomalyRate"
               name="Anomaly Rate"
               unit="%"
-              stroke="#94a3b8"
-              tick={{ fill: '#94a3b8', fontSize: 12 }}
-              label={{ value: 'Anomaly Rate (%)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+              stroke="var(--color-text-secondary)"
+              tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+              label={{ value: 'Anomaly Rate (%)', angle: -90, position: 'insideLeft', fill: 'var(--color-text-secondary)' }}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
             <Scatter

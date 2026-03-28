@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Icon from '../../../components/UI/AppIcon';
+import Icon from '@/components/UI/AppIcon';
 
 interface ProcessStage {
   id: string;
@@ -28,18 +28,18 @@ const ProcessStageFilter = ({
     <div className="relative">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 px-4 py-2 rounded-md bg-muted hover:bg-muted/80 transition-smooth border border-border/30"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-bg-primary transition-colors border border-border-primary"
         aria-label="Filter by process stage"
         aria-expanded={isExpanded}
       >
-        <Icon name="FunnelIcon" size={20} className="text-muted-foreground" />
-        <span className="font-caption font-medium text-sm text-foreground">
+        <Icon name="FunnelIcon" size={20} className="text-text-secondary" />
+        <span className="font-sans font-medium text-sm text-text-primary">
           Process Stages {selectedStages.length > 0 && `(${selectedStages.length})`}
         </span>
         <Icon
           name="ChevronDownIcon"
           size={16}
-          className={`text-muted-foreground transition-transform duration-fast ${
+          className={`text-text-secondary transition-transform duration-200 ${
             isExpanded ? 'rotate-180' : ''
           }`}
         />
@@ -48,19 +48,19 @@ const ProcessStageFilter = ({
       {isExpanded && (
         <>
           <div
-            className="fixed inset-0 z-dropdown"
+            className="fixed inset-0 z-40"
             onClick={() => setIsExpanded(false)}
           />
-          <div className="absolute top-full left-0 mt-2 w-80 bg-popover border border-border/30 rounded-md shadow-lg z-dropdown">
+          <div className="absolute top-full left-0 mt-2 w-80 bg-bg-secondary border border-border-primary rounded-xl shadow-lg z-50">
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-caption font-semibold text-sm text-foreground">
+                <span className="font-sans font-semibold text-sm text-text-primary">
                   Filter by Stage
                 </span>
                 {selectedStages.length > 0 && (
                   <button
                     onClick={onClearAll}
-                    className="font-caption text-xs text-primary hover:underline"
+                    className="font-sans text-xs text-nobel-gold hover:underline"
                   >
                     Clear All
                   </button>
@@ -74,19 +74,19 @@ const ProcessStageFilter = ({
                   return (
                     <label
                       key={stage.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-smooth"
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-bg-primary cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => onStageToggle(stage.id)}
-                        className="w-4 h-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+                        className="w-4 h-4 rounded border-border-primary text-nobel-gold focus:ring-2 focus:ring-nobel-gold"
                       />
                       <div className="flex-1 flex items-center justify-between">
-                        <span className="font-caption text-sm text-foreground">
+                        <span className="font-sans text-sm text-text-primary">
                           {stage.label}
                         </span>
-                        <span className="font-caption text-xs text-muted-foreground">
+                        <span className="font-sans text-xs text-text-secondary">
                           {stage.count} cases
                         </span>
                       </div>

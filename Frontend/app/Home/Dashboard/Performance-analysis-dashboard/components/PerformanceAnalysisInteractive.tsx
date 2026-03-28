@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '../../../components/common/AlertNotificationbanner';
+import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
 import PerformanceKPICard from './PerformanceKPICard';
 import ProcessStageFilter from './ProcessStageFilter';
@@ -424,7 +424,7 @@ const PerformanceAnalysisInteractive = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
       <AlertNotificationBanner 
         alerts={alerts}
         onDismiss={handleDismissAlert}
@@ -441,15 +441,15 @@ const PerformanceAnalysisInteractive = () => {
           isLoading={isLoading}
         />
         
-        <div className="p-lg">
+        <div className="p-8">
           {/* Page Header */}
-          <div className="mb-lg">
+          <div className="mb-8 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="font-heading text-3xl font-semibold text-foreground mb-2">
+                <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">
                   Performance Analysis Dashboard
                 </h1>
-                <p className="font-caption text-base text-muted-foreground">
+                <p className="font-sans text-base text-text-secondary">
                   Identify workflow bottlenecks and optimize P2P cycle times through comprehensive performance metrics
                 </p>
               </div>
@@ -470,14 +470,14 @@ const PerformanceAnalysisInteractive = () => {
           </div>
 
           {/* KPI Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {kpiData.map((kpi, index) => (
-              <PerformanceKPICard key={index} {...kpi} />
+              <PerformanceKPICard key={index} {...kpi} delay={index * 100} />
             ))}
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-lg">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
             {/* Cycle Time Trend Chart */}
             <div className="lg:col-span-8">
               <CycleTimeTrendChart 
@@ -496,7 +496,7 @@ const PerformanceAnalysisInteractive = () => {
           </div>
 
           {/* Process Flow Diagram */}
-          <div className="mb-lg">
+          <div className="mb-8">
             <ProcessFlowDiagram
               activities={processActivities}
               onActivityClick={handleActivityClick}

@@ -11,11 +11,26 @@
   "dependencies": {
     "@dhiwise/component-tagger": "^1.0.14",
     "@heroicons/react": "^2.2.0",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "@tailwindcss/typography": "^0.5.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.7.0",
+    "motion": "^12.38.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "recharts": "^2.5.0"
+    "react-hook-form": "^7.72.0",
+    "recharts": "^2.5.0",
+    "socket.io-client": "^4.8.3",
+    "swr": "^2.4.1",
+    "tailwind-merge": "^3.5.0",
+    "three": "^0.181.2",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
