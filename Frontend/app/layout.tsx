@@ -1,4 +1,6 @@
 import '../styles/tailwind.css';
+import { AuthProvider } from '../contexts/AuthContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 
 export const metadata = {
   title: 'P2P Insight',
@@ -12,7 +14,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
