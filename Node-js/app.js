@@ -6,6 +6,7 @@ const connectDB = require('./config/db.config');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const orgRoutes = require('./routes/organization.routes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/org', orgRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

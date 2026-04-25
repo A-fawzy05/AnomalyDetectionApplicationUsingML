@@ -1,0 +1,144 @@
+{
+  "ocel:global-log": {
+    "ocel:version": "2.0",
+    "ocel:attribute-names": ["resource", "amount", "quantity", "currency", "vendor", "document_type"],
+    "ocel:object-types": ["Purchase Order", "Vendor"],
+    "ocel:event-types": ["Create Purchase Order", "Approve Purchase Order", "Receive Goods", "Receive Invoice", "Pay Invoice"]
+  },
+  "ocel:events": {
+    "e1": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2024-01-15T09:30:00Z",
+      "ocel:omap": ["po_001", "v_001"],
+      "ocel:vmap": {
+        "ocel:resource": "user_123",
+        "amount": 45000.0,
+        "quantity": 10,
+        "currency": "EUR"
+      }
+    },
+    "e2": {
+      "ocel:activity": "Approve Purchase Order",
+      "ocel:timestamp": "2024-01-15T11:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": {
+        "ocel:resource": "manager_456"
+      }
+    },
+    "e3": {
+      "ocel:activity": "Receive Goods",
+      "ocel:timestamp": "2024-01-18T14:20:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": {
+        "ocel:resource": "warehouse_789"
+      }
+    },
+    "e4": {
+      "ocel:activity": "Receive Invoice",
+      "ocel:timestamp": "2024-01-20T10:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": {
+        "ocel:resource": "finance_101",
+        "amount": 45000.0
+      }
+    },
+    "e5": {
+      "ocel:activity": "Pay Invoice",
+      "ocel:timestamp": "2024-01-25T16:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": {
+        "ocel:resource": "system_001"
+      }
+    },
+    "e6": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2024-01-16T13:00:00Z",
+      "ocel:omap": ["po_002", "v_002"],
+      "ocel:vmap": {
+        "ocel:resource": "user_123",
+        "amount": 120000.0,
+        "quantity": 5,
+        "currency": "EUR"
+      }
+    },
+    "e7": {
+      "ocel:activity": "Receive Invoice",
+      "ocel:timestamp": "2024-01-17T09:00:00Z",
+      "ocel:omap": ["po_002"],
+      "ocel:vmap": {
+        "ocel:resource": "finance_101",
+        "amount": 130000.0
+      }
+    },
+    "e8": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2024-01-18T08:00:00Z",
+      "ocel:omap": ["po_003", "v_001"],
+      "ocel:vmap": {
+        "ocel:resource": "user_999",
+        "amount": 500.0,
+        "quantity": 1,
+        "currency": "EUR"
+      }
+    },
+    "e9": {
+      "ocel:activity": "Pay Invoice",
+      "ocel:timestamp": "2024-01-18T08:05:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": {
+        "ocel:resource": "user_999"
+      }
+    },
+    "e10": {
+      "ocel:activity": "Receive Goods",
+      "ocel:timestamp": "2024-01-19T10:00:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": {
+        "ocel:resource": "warehouse_789"
+      }
+    }
+  },
+  "ocel:objects": {
+    "po_001": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Global Tech Solutions Inc.",
+        "document_type": "Standard PO",
+        "spend_area": "IT Hardware",
+        "item_category": "Electronics"
+      }
+    },
+    "po_002": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Fast Servers Ltd.",
+        "document_type": "High Value PO",
+        "spend_area": "IT Infrastructure",
+        "item_category": "Servers"
+      }
+    },
+    "po_003": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Global Tech Solutions Inc.",
+        "document_type": "Express PO",
+        "spend_area": "Office Supplies",
+        "item_category": "Stationery"
+      }
+    },
+    "v_001": {
+      "ocel:type": "Vendor",
+      "ocel:ovmap": {
+        "vendor_name": "Global Tech Solutions Inc.",
+        "country": "USA"
+      }
+    },
+    "v_002": {
+      "ocel:type": "Vendor",
+      "ocel:ovmap": {
+        "vendor_name": "Fast Servers Ltd.",
+        "country": "Germany"
+      }
+    }
+  }
+}

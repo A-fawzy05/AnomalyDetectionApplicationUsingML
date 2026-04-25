@@ -47,6 +47,17 @@ const userSchema = new mongoose.Schema({
   profilePicture: {
     type: String
   },
+  organizations: [{
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization'
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'member'],
+      default: 'member'
+    }
+  }],
   lastLogin: {
     type: Date
   },
