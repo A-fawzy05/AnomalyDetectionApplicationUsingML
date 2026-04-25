@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import AnomalyDetectionInteractive from './components/AnomalyDetectionInteractive';
+import { ToastProvider } from '@/components/UI/Toast';
 
 export const metadata: Metadata = {
   title: 'Anomaly Detection Dashboard - P2P Mining',
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AnomalyDetectionDashboardPage() {
-  return <AnomalyDetectionInteractive />;
+  return (
+    <ToastProvider>
+      <AnomalyDetectionInteractive />
+    </ToastProvider>
+  );
 }

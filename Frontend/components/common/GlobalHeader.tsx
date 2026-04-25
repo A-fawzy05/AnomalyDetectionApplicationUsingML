@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Bell, X } from 'lucide-react';
 import Icon from '../UI/AppIcon';
+import { useToast } from '../UI/Toast';
 
 interface GlobalHeaderProps {
   onRefresh?: () => void;
@@ -14,11 +15,49 @@ const GlobalHeader = ({ onRefresh, isLoading = false }: GlobalHeaderProps) => {
   const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connected');
   const [darkMode, setDarkMode] = useState(false);
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+  const { toasts, addToast, removeToast, markAsRead, markAllAsRead, getUnreadCount } = useToast();
 
   useEffect(() => {
     // Sync with existing dark class on mount
     setDarkMode(document.documentElement.classList.contains('dark'));
   }, []);
+
+  useEffect(() => {
+    // Simulate receiving notifications for demo
+    const notificationInterval = setInterval(() => {
+      const randomNotification = Math.random();
+      if (randomNotification > 0.7) {
+        const notifications = [
+          {
+            type: 'warning' as const,
+            title: 'New Anomaly Detected',
+            message: 'Price mismatch detected in PO-2026-00848',
+          },
+          {
+            type: 'error' as const,
+            title: 'Critical Alert',
+            message: 'Three-way match failure detected',
+          },
+          {
+            type: 'info' as const,
+            title: 'System Update',
+            message: 'Anomaly detection model updated successfully',
+          },
+          {
+            type: 'success' as const,
+            title: 'Case Resolved',
+            message: 'Anomaly case PO-2026-00845 has been resolved',
+          },
+        ];
+        
+        const randomNotif = notifications[Math.floor(Math.random() * notifications.length)];
+        addToast(randomNotif);
+      }
+    }, 15000); // Every 15 seconds
+
+    return () => clearInterval(notificationInterval);
+  }, [addToast]);
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -53,6 +92,21 @@ const GlobalHeader = ({ onRefresh, isLoading = false }: GlobalHeaderProps) => {
       onRefresh();
     }
   };
+
+  const handleNotificationClick = () => {
+    setIsNotificationDropdownOpen(!isNotificationDropdownOpen);
+  };
+
+  const handleMarkAllAsRead = () => {
+    markAllAsRead();
+    setIsNotificationDropdownOpen(false);
+  };
+
+  const handleNotificationItemClick = (toastId: string) => {
+    markAsRead(toastId);
+  };
+
+  const unreadCount = getUnreadCount();
 
   const getConnectionStatusColor = () => {
     switch (connectionStatus) {
@@ -169,13 +223,77 @@ const GlobalHeader = ({ onRefresh, isLoading = false }: GlobalHeaderProps) => {
           </button>
 
           {/* Notifications */}
-          <button
-            className="relative p-2 rounded-lg bg-bg-primary hover:bg-bg-primary/80 border border-border-primary transition-all duration-200 hover:-translate-y-0.5 shadow-sm text-text-secondary hover:text-text-primary"
-            aria-label="View notifications"
-          >
-            <Icon name="BellIcon" size={20} />
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-bg-secondary rounded-full" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={handleNotificationClick}
+              className="relative p-2 rounded-lg bg-bg-primary hover:bg-bg-primary/80 border border-border-primary transition-all duration-200 hover:-translate-y-0.5 shadow-sm text-text-secondary hover:text-text-primary"
+              aria-label="View notifications"
+            >
+              <Icon name="BellIcon" size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-bg-secondary rounded-full" />
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {isNotificationDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-bg-primary border border-border-primary rounded-lg shadow-lg z-50">
+                <div className="p-4 border-b border-border-primary">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-text-primary">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-xs text-nobel-gold hover:text-nobel-gold/80 transition-colors"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="max-h-96 overflow-y-auto">
+                  {toasts.length === 0 ? (
+                    <div className="p-4 text-center text-text-secondary">
+                      <p>No notifications</p>
+                    </div>
+                  ) : (
+                    toasts.map((toast) => (
+                      <div
+                        key={toast.id}
+                        onClick={() => handleNotificationItemClick(toast.id)}
+                        className={`p-4 border-b border-border-primary hover:bg-bg-secondary cursor-pointer transition-colors ${
+                          !toast.isRead ? 'bg-bg-primary/50' : ''
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                            toast.type === 'success' ? 'bg-green-500' :
+                            toast.type === 'error' ? 'bg-red-500' :
+                            toast.type === 'warning' ? 'bg-yellow-500' :
+                            'bg-blue-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-sm font-medium text-text-primary ${
+                              !toast.isRead ? 'font-semibold' : ''
+                            }`}>
+                              {toast.title}
+                            </h4>
+                            <p className="text-xs text-text-secondary mt-1">
+                              {toast.message}
+                            </p>
+                          </div>
+                          {!toast.isRead && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Settings */}
           <button

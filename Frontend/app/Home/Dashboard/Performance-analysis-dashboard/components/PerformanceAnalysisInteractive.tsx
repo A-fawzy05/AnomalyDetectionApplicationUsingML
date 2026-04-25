@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
+import DashboardLoadingScreen from '@/components/common/DashboardLoadingScreen';
 import PerformanceKPICard from './PerformanceKPICard';
 import ProcessStageFilter from './ProcessStageFilter';
 import BenchmarkToggle from './BenchmarkToggle';
@@ -12,6 +12,7 @@ import CycleTimeTrendChart from './CycleTimeTrendChart';
 import ProcessFlowDiagram from './ProcessFlowDiagram';
 import ActivityPerformanceRanking from './ActivityPerformanceRanking';
 import DetailedPerformanceTable from './DetailedPerformanceTable';
+import { useToast } from '@/components/UI/Toast';
 
 interface Alert {
   id: string;
@@ -83,27 +84,13 @@ const PerformanceAnalysisInteractive = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isIndustryBenchmark, setIsIndustryBenchmark] = useState(true);
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
-    
-    // Mock alerts
-    setAlerts([
-      {
-        id: 'alert-1',
-        type: 'warning',
-        title: 'High Cycle Time Detected',
-        message: 'Invoice Approval activity showing 35% increase in processing time over last 7 days',
-        timestamp: new Date(2026, 1, 2, 1, 15),
-        actionLabel: 'View Details',
-        onAction: () => console.log('View alert details')
-      }
-    ]);
   }, []);
 
   if (!isHydrated) {
-    return <LoadingStateManager isLoading={true} type="overlay" />;
+    return <DashboardLoadingScreen dashboardName="Performance Analysis Dashboard" isLoading={true} />;
   }
 
   const processStages: ProcessStage[] = [
@@ -419,17 +406,8 @@ const PerformanceAnalysisInteractive = () => {
     console.log('Case clicked:', caseId);
   };
 
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts(prev => prev.filter(alert => alert.id !== alertId));
-  };
-
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
-      <AlertNotificationBanner 
-        alerts={alerts}
-        onDismiss={handleDismissAlert}
-      />
-      
       <NavigationSidebar 
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

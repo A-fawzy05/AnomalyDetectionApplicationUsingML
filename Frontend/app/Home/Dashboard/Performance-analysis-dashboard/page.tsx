@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import PerformanceAnalysisInteractive from './components/PerformanceAnalysisInteractive';
+import { ToastProvider } from '@/components/UI/Toast';
 
 export const metadata: Metadata = {
   title: 'Performance Analysis Dashboard - P2P Mining',
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function PerformanceAnalysisDashboardPage() {
-  return <PerformanceAnalysisInteractive />;
+  return (
+    <ToastProvider>
+      <PerformanceAnalysisInteractive />
+    </ToastProvider>
+  );
 }

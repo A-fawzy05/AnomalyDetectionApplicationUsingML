@@ -3,14 +3,15 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
+import DashboardLoadingScreen from '@/components/common/DashboardLoadingScreen';
 import KPIMetricCard from './KPIMetricCard';
 import AnomalyTableRow from './anomalyTableRow';
 import RealTimeAnomalyFeed from './RealTimeAnomalyFeed';
 import ProcessMapVisualization from './ProcessMapVisualization';
 import FilterPanel from './FilterPanel';
 import Icon from '@/components/UI/AppIcon';
+import { useToast } from '@/components/UI/Toast';
 
 interface KPIData {
   totalCases: number;
@@ -257,18 +258,6 @@ const AnomalyDetectionInteractive = () => {
     { id: 'logistics-solutions', label: 'Logistics Solutions Group', count: 31 }
   ];
 
-  const alerts = [
-    {
-      id: '1',
-      type: 'critical' as const,
-      title: 'High-Value Anomaly Detected',
-      message: 'Purchase order PO-2026-00847 flagged with 92% severity score for price mismatch exceeding $127K',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      actionLabel: 'View Details',
-      onAction: () => console.log('View anomaly details')
-    }
-  ];
-
   const handleRefresh = () => {
     setIsLoading(true);
     setTimeout(() => {
@@ -300,12 +289,11 @@ const AnomalyDetectionInteractive = () => {
   };
 
   if (!isHydrated) {
-    return <LoadingStateManager isLoading={true} type="overlay" />;
+    return <DashboardLoadingScreen dashboardName="Anomaly Detection Dashboard" isLoading={true} />;
   }
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
-      <AlertNotificationBanner alerts={alerts} />
       <NavigationSidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

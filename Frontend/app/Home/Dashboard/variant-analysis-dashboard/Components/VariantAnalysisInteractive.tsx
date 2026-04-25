@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
-import AlertNotificationBanner from '@/components/common/AlertNotificationbanner';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
+import DashboardLoadingScreen from '@/components/common/DashboardLoadingScreen';
 import VariantOverviewCards from './VariantOverviewCards';
 import VariantFrequencyChart from './VariantFrequencyChart';
 import VariantComparisonTable from './VariantComparisonTable';
 import VariantAnomalyBreakdown from './VariantAnomalyBreakdown';
 import VariantFilters from './VariantFilters';
+import { useToast } from '@/components/UI/Toast';
 
 interface VariantMetric {
   label: string;
@@ -62,27 +63,13 @@ const VariantAnalysisInteractive = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
-    
-    // Mock alerts
-    setAlerts([
-      {
-        id: 'alert-1',
-        type: 'warning',
-        title: 'High Anomaly Rate Detected',
-        message: 'Variant V-003 shows 18.5% anomaly rate, exceeding the 15% threshold',
-        timestamp: new Date('2026-02-02T01:15:00'),
-        actionLabel: 'View Details',
-        onAction: () => setSelectedVariant('V-003')
-      }
-    ]);
   }, []);
 
   if (!isHydrated) {
-    return <LoadingStateManager isLoading={true} loadingText="Loading Variant Analysis Dashboard..." />;
+    return <DashboardLoadingScreen dashboardName="Variant Analysis Dashboard" isLoading={true} />;
   }
 
   const mockMetrics: VariantMetric[] = [
@@ -233,18 +220,12 @@ const VariantAnalysisInteractive = () => {
     console.log('Date range changed:', range);
   };
 
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts(alerts.filter(alert => alert.id !== alertId));
-  };
-
   const selectedVariantData = mockVariants.find(v => v.id === selectedVariant);
   const totalCases = selectedVariantData?.caseCount || 0;
   const anomalousCases = Math.round(totalCases * ((selectedVariantData?.anomalyRate || 0) / 100));
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
-      <AlertNotificationBanner alerts={alerts} onDismiss={handleDismissAlert} />
-      
       <NavigationSidebar
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import VariantAnalysisInteractive from './Components/VariantAnalysisInteractive';
+import { ToastProvider } from '@/components/UI/Toast';
 
 export const metadata: Metadata = {
   title: 'Variant Analysis Dashboard - P2P Mining',
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function VariantAnalysisDashboardPage() {
-  return <VariantAnalysisInteractive />;
+  return (
+    <ToastProvider>
+      <VariantAnalysisInteractive />
+    </ToastProvider>
+  );
 }

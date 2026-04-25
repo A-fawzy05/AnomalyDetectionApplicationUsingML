@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTheme } from '../../contexts/ThemeContext';
 import { HeroScene, DataFlowScene } from './../../components/Home/QuantamScene';
 import { P2PFlowDiagram, AnomalyDetectionDiagram, DetectionAccuracyDiagram } from './../../components/Home/Diagrams';
 import { ArrowDown, Menu, X, BookOpen, Sun, Moon, ShieldAlert, Zap, Layers, AlertCircle } from 'lucide-react';
@@ -85,23 +87,16 @@ const AuthorCard = ({ name, role, delay }: { name: string, role: string, delay: 
 };
 
 const App: React.FC = () => {
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
 
   const scrollToSection = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -117,6 +112,10 @@ const App: React.FC = () => {
         behavior: "smooth"
       });
     }
+  };
+
+  const handleGetStarted = () => {
+    router.push('/auth');
   };
 
   return (
@@ -140,28 +139,27 @@ const App: React.FC = () => {
             <a href="#authors" onClick={scrollToSection('authors')} className="hover:text-nobel-gold transition-colors cursor-pointer uppercase">Team</a>
             
             <button 
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-bg-secondary transition-colors text-text-primary"
               aria-label="Toggle theme"
             >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            <a 
-              href="#setup" 
-              onClick={scrollToSection('setup')}
+            <button 
+              onClick={handleGetStarted}
               className="px-5 py-2 bg-text-primary text-bg-primary rounded-full hover:opacity-90 transition-opacity shadow-sm cursor-pointer"
             >
               Get Started
-            </a>
+            </button>
           </div>
 
           <div className="flex items-center gap-4 md:hidden">
             <button 
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-bg-secondary transition-colors text-text-primary"
             >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <button className="text-text-primary p-2" onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
@@ -177,13 +175,12 @@ const App: React.FC = () => {
             <a href="#mining" onClick={scrollToSection('mining')} className="hover:text-nobel-gold transition-colors cursor-pointer uppercase">Process Mining</a>
             <a href="#anomaly" onClick={scrollToSection('anomaly')} className="hover:text-nobel-gold transition-colors cursor-pointer uppercase">Anomaly Detection</a>
             <a href="#authors" onClick={scrollToSection('authors')} className="hover:text-nobel-gold transition-colors cursor-pointer uppercase">Team</a>
-            <a 
-              href="#setup" 
-              onClick={scrollToSection('setup')}
+            <button 
+              onClick={handleGetStarted}
               className="px-6 py-3 bg-text-primary text-bg-primary rounded-full shadow-lg cursor-pointer"
             >
               Get Started
-            </a>
+            </button>
         </div>
       )}
 

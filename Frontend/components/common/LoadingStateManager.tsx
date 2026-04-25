@@ -1,7 +1,5 @@
 'use client';
 
-
-
 interface LoadingStateManagerProps {
   isLoading?: boolean;
   loadingText?: string;
@@ -36,16 +34,16 @@ const LoadingStateManager = ({
   if (type === 'skeleton') {
     return (
       <div className={`space-y-4 ${className}`}>
-        <div className="h-8 bg-muted rounded-md animate-pulse-subtle" />
+        <div className="h-8 bg-muted/50 rounded-md animate-pulse" />
         <div className="space-y-3">
-          <div className="h-4 bg-muted rounded-md animate-pulse-subtle" />
-          <div className="h-4 bg-muted rounded-md animate-pulse-subtle w-5/6" />
-          <div className="h-4 bg-muted rounded-md animate-pulse-subtle w-4/6" />
+          <div className="h-4 bg-muted/50 rounded-md animate-pulse" />
+          <div className="h-4 bg-muted/50 rounded-md animate-pulse w-5/6" />
+          <div className="h-4 bg-muted/50 rounded-md animate-pulse w-4/6" />
         </div>
         <div className="grid grid-cols-3 gap-4">
-          <div className="h-24 bg-muted rounded-md animate-pulse-subtle" />
-          <div className="h-24 bg-muted rounded-md animate-pulse-subtle" />
-          <div className="h-24 bg-muted rounded-md animate-pulse-subtle" />
+          <div className="h-24 bg-muted/50 rounded-md animate-pulse" />
+          <div className="h-24 bg-muted/50 rounded-md animate-pulse" />
+          <div className="h-24 bg-muted/50 rounded-md animate-pulse" />
         </div>
       </div>
     );
@@ -55,7 +53,7 @@ const LoadingStateManager = ({
     return (
       <div className={`flex items-center justify-center gap-3 py-8 ${className}`}>
         <div className="relative">
-          <div className={`${sizeClasses[size]} border-4 border-muted rounded-full`} />
+          <div className={`${sizeClasses[size]} border-4 border-muted/30 rounded-full`} />
           <div
             className={`
               absolute inset-0 ${sizeClasses[size]}
@@ -64,7 +62,7 @@ const LoadingStateManager = ({
             `}
           />
         </div>
-        <span className={`font-caption font-medium ${textSizeClasses[size]} text-muted-foreground`}>
+        <span className={`font-sans font-medium ${textSizeClasses[size]} text-muted-foreground`}>
           {loadingText}
         </span>
       </div>
@@ -75,20 +73,21 @@ const LoadingStateManager = ({
     <div
       className={`
         fixed inset-0 z-modal
-        bg-background
+        bg-background/95 backdrop-blur-sm
         flex items-center justify-center
+        transition-colors duration-300
         ${className}
       `}
     >
       <div className="flex flex-col items-center gap-6">
         {/* Animated Logo */}
         <div className="relative">
-          <div className="w-20 h-20 rounded-xl bg-primary flex items-center justify-center glow-accent animate-pulse-subtle">
+          <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 animate-pulse">
             <svg
               viewBox="0 0 40 40"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="w-12 h-12"
+              className="w-12 h-12 text-primary-foreground"
             >
               <path
                 d="M20 8L28 14V26L20 32L12 26V14L20 8Z"
@@ -96,7 +95,6 @@ const LoadingStateManager = ({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-primary-foreground"
               />
               <path
                 d="M20 8V20M20 20L28 26M20 20L12 26"
@@ -104,7 +102,6 @@ const LoadingStateManager = ({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-primary-foreground"
               />
             </svg>
           </div>
@@ -119,10 +116,10 @@ const LoadingStateManager = ({
 
         {/* Loading Text */}
         <div className="text-center">
-          <h3 className="font-heading font-semibold text-xl text-foreground mb-2">
+          <h3 className="font-serif font-semibold text-xl text-foreground mb-2">
             {loadingText}
           </h3>
-          <p className="font-caption text-sm text-muted-foreground">
+          <p className="font-sans text-sm text-muted-foreground">
             Please wait while we process your request
           </p>
         </div>
@@ -132,7 +129,7 @@ const LoadingStateManager = ({
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="w-2 h-2 rounded-full bg-primary animate-pulse-subtle"
+              className="w-2 h-2 rounded-full bg-primary animate-pulse"
               style={{ animationDelay: `${i * 200}ms` }}
             />
           ))}

@@ -106,6 +106,12 @@ export default function ProfilePage() {
     fetchOrgs();
   }
 
+  function handleSelectOrganization(orgId: string) {
+    // Store selected organization and navigate to anomaly detection dashboard
+    localStorage.setItem('selectedOrgId', orgId);
+    router.push('/Home/Dashboard/Anomaly-detection-Dashboard');
+  }
+
   const hasOrgs = orgs.length > 0;
 
   return (
@@ -309,7 +315,8 @@ export default function ProfilePage() {
                     idx > 0
                       ? isDark ? 'border-t border-border-primary' : 'border-t border-gray-100'
                       : ''
-                  } ${isDark ? 'bg-bg-secondary' : 'bg-white'}`}
+                  } ${isDark ? 'bg-bg-secondary' : 'bg-white'} cursor-pointer hover:opacity-80 transition-opacity`}
+                  onClick={() => handleSelectOrganization(org.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-semibold ${
@@ -382,10 +389,7 @@ export default function ProfilePage() {
           isDark={isDark}
           orgs={orgs}
           onClose={() => setActiveModal(null)}
-          onSelect={(orgId) => {
-            setActiveModal(null);
-            router.push(`/profile/data-entry?org=${orgId}`);
-          }}
+          onSelect={handleSelectOrganization}
         />
       )}
     </div>
