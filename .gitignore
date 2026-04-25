@@ -28,6 +28,19 @@ FastAPI/.coverage
 FastAPI/htmlcov/
 FastAPI/.mypy_cache/
 
+# Python (P2P Anomaly Detection API)
+p2p_anomaly_api/__pycache__/
+p2p_anomaly_api/*.py[cod]
+p2p_anomaly_api/*$py.class
+p2p_anomaly_api/.venv/
+p2p_anomaly_api/venv/
+p2p_anomaly_api/ENV/
+p2p_anomaly_api/.pytest_cache/
+p2p_anomaly_api/.coverage
+p2p_anomaly_api/htmlcov/
+p2p_anomaly_api/.mypy_cache/
+
+
 # OS Specific
 .DS_Store
 .DS_Store?
