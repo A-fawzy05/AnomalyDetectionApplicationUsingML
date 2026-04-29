@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, Numeric, DateTime, Text, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
-from p2p_anomaly_api.db.models import Base
+from db.models import Base
 
 
 class AnalysisRun(Base):
@@ -25,3 +25,4 @@ class AnalysisRun(Base):
     # 'pending' | 'processing' | 'completed' | 'failed'
     error_message = Column(Text)
     duration_ms = Column(Integer)
+

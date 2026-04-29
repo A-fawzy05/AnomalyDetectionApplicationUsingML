@@ -1,0 +1,147 @@
+{
+  "ocel:global-log": {
+    "ocel:version": "2.0",
+    "ocel:attribute-names": ["amount", "quantity", "ocel:resource"],
+    "ocel:object-types": ["Purchase Order", "Vendor"],
+    "ocel:event-types": [
+      "Create Purchase Requisition", "Create Purchase Order",
+      "Goods Receipt", "Invoice Verification", "Payment Processing"
+    ]
+  },
+  "ocel:events": {
+    "evt_001": {
+      "ocel:activity": "Create Purchase Requisition",
+      "ocel:timestamp": "2026-01-02T08:00:00Z",
+      "ocel:omap": ["po_001", "vendor_001"],
+      "ocel:vmap": { "ocel:resource": "user_101", "amount": 0, "quantity": 0 }
+    },
+    "evt_002": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2026-01-02T09:30:00Z",
+      "ocel:omap": ["po_001", "vendor_001"],
+      "ocel:vmap": { "ocel:resource": "user_101", "amount": 127450.00, "quantity": 5 }
+    },
+    "evt_003": {
+      "ocel:activity": "Goods Receipt",
+      "ocel:timestamp": "2026-01-02T10:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": { "ocel:resource": "user_202", "amount": 127450.00, "quantity": 5 }
+    },
+    "evt_004": {
+      "ocel:activity": "Invoice Verification",
+      "ocel:timestamp": "2026-01-02T14:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": { "ocel:resource": "user_303", "amount": 127450.00, "quantity": 5 }
+    },
+    "evt_005": {
+      "ocel:activity": "Payment Processing",
+      "ocel:timestamp": "2026-01-03T09:00:00Z",
+      "ocel:omap": ["po_001"],
+      "ocel:vmap": { "ocel:resource": "user_404", "amount": 127450.00, "quantity": 5 }
+    },
+    "evt_006": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2026-01-03T02:30:00Z",
+      "ocel:omap": ["po_002", "vendor_002"],
+      "ocel:vmap": { "ocel:resource": "user_707", "amount": 234560.00, "quantity": 1 }
+    },
+    "evt_007": {
+      "ocel:activity": "Payment Processing",
+      "ocel:timestamp": "2026-01-03T03:00:00Z",
+      "ocel:omap": ["po_002"],
+      "ocel:vmap": { "ocel:resource": "user_707", "amount": 234560.00, "quantity": 1 }
+    },
+    "evt_008": {
+      "ocel:activity": "Create Purchase Requisition",
+      "ocel:timestamp": "2026-01-04T09:00:00Z",
+      "ocel:omap": ["po_003", "vendor_003"],
+      "ocel:vmap": { "ocel:resource": "user_101", "amount": 0, "quantity": 0 }
+    },
+    "evt_009": {
+      "ocel:activity": "Create Purchase Order",
+      "ocel:timestamp": "2026-01-04T09:15:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": { "ocel:resource": "user_101", "amount": 45680.00, "quantity": 200 }
+    },
+    "evt_010": {
+      "ocel:activity": "Goods Receipt",
+      "ocel:timestamp": "2026-01-04T09:20:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": { "ocel:resource": "user_202", "amount": 45680.00, "quantity": 200 }
+    },
+    "evt_011": {
+      "ocel:activity": "Invoice Verification",
+      "ocel:timestamp": "2026-01-04T09:25:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": { "ocel:resource": "user_303", "amount": 45680.00, "quantity": 200 }
+    },
+    "evt_012": {
+      "ocel:activity": "Payment Processing",
+      "ocel:timestamp": "2026-01-04T09:30:00Z",
+      "ocel:omap": ["po_003"],
+      "ocel:vmap": { "ocel:resource": "user_404", "amount": 45680.00, "quantity": 200 }
+    }
+  },
+  "ocel:objects": {
+    "po_001": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Global Tech Solutions Inc.",
+        "document_type": "Standard PO",
+        "spend_area": "IT Hardware",
+        "sub_spend_area": "Servers",
+        "spend_classification": "Capex",
+        "source": "Manual",
+        "company": "HQ",
+        "item_type": "Material",
+        "item_category": "Electronics",
+        "gr_based_inv_verif": true,
+        "goods_receipt": false
+      }
+    },
+    "po_002": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Cloud Services Provider",
+        "document_type": "Emergency PO",
+        "spend_area": "IT Cloud",
+        "sub_spend_area": "SaaS",
+        "spend_classification": "Capex",
+        "source": "Manual",
+        "company": "HQ",
+        "item_type": "Service",
+        "item_category": "Cloud",
+        "gr_based_inv_verif": false,
+        "goods_receipt": false
+      }
+    },
+    "po_003": {
+      "ocel:type": "Purchase Order",
+      "ocel:ovmap": {
+        "vendor": "Industrial Supplies Ltd",
+        "document_type": "Standard PO",
+        "spend_area": "MRO",
+        "sub_spend_area": "Tools",
+        "spend_classification": "Opex",
+        "source": "Catalog",
+        "company": "HQ",
+        "item_type": "Material",
+        "item_category": "Hardware",
+        "gr_based_inv_verif": true,
+        "goods_receipt": true
+      }
+    },
+    "vendor_001": {
+      "ocel:type": "Vendor",
+      "ocel:ovmap": { "name": "Global Tech Solutions Inc.", "country": "US" }
+    },
+    "vendor_002": {
+      "ocel:type": "Vendor",
+      "ocel:ovmap": { "name": "Cloud Services Provider", "country": "DE" }
+    },
+    "vendor_003": {
+      "ocel:type": "Vendor",
+      "ocel:ovmap": { "name": "Industrial Supplies Ltd", "country": "EG" }
+    }
+  }
+}

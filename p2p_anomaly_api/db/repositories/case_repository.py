@@ -7,8 +7,8 @@ from uuid import UUID
 from sqlalchemy import select, func, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from p2p_anomaly_api.db.models.case_result import CaseResult
-from p2p_anomaly_api.db.models.case_flag import CaseFlag
+from db.models.case_result import CaseResult
+from db.models.case_flag import CaseFlag
 
 
 async def bulk_insert_cases(session: AsyncSession, run_id: UUID, case_rows: List[dict]) -> None:
@@ -84,3 +84,4 @@ async def count_cases(session: AsyncSession, run_id: UUID, filters: dict) -> int
         
     result = await session.execute(stmt)
     return result.scalar()
+

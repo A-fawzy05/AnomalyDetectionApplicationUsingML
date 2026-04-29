@@ -32,3 +32,4 @@ class BaseIngester(ABC):
             "timestamp": "timestamp"
         }
         return df.rename(columns=alias_map)
+

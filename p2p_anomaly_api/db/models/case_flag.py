@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy import Column, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from p2p_anomaly_api.db.models import Base
+from db.models import Base
 
 
 class CaseFlag(Base):
@@ -23,3 +23,4 @@ class CaseFlag(Base):
     quantity_variance = Column(Boolean, nullable=False, default=False)
 
     case_result = relationship("CaseResult", back_populates="flags")
+

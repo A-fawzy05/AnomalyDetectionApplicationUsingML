@@ -1,0 +1,11 @@
+case_id,activity,timestamp,resource,amount,quantity,vendor,case:Document Type,case:Spend area text,case:Sub spend area text,case:Spend classification text,case:Source,case:Company,case:Item Type,case:Item Category,case:Name,case:GR-Based Inv. Verif.,case:Goods Receipt
+C001,Create Purchase Requisition,2024-01-01 09:00:00,UserA,1000,10,VendorX,Standard PO,Indirect,Office,Materials,ERP,Comp1,Hardware,Laptops,Dell XPS,True,True
+C001,Create Purchase Order,2024-01-02 10:00:00,UserA,1000,10,VendorX,Standard PO,Indirect,Office,Materials,ERP,Comp1,Hardware,Laptops,Dell XPS,True,True
+C001,Goods Receipt,2024-01-03 14:00:00,UserB,0,0,VendorX,Standard PO,Indirect,Office,Materials,ERP,Comp1,Hardware,Laptops,Dell XPS,True,True
+C001,Record Invoice Receipt,2024-01-04 11:00:00,UserC,1000,10,VendorX,Standard PO,Indirect,Office,Materials,ERP,Comp1,Hardware,Laptops,Dell XPS,True,True
+C001,Clear Invoice,2024-01-05 16:00:00,UserD,1000,10,VendorX,Standard PO,Indirect,Office,Materials,ERP,Comp1,Hardware,Laptops,Dell XPS,True,True
+C002,Record Invoice Receipt,2024-01-02 09:00:00,UserE,50000,1,VendorY,Standard PO,Direct,Raw Materials,Production,Manual,Comp1,Service,Consulting,Strategic,False,False
+C002,Clear Invoice,2024-01-03 10:00:00,UserE,50000,1,VendorY,Standard PO,Direct,Raw Materials,Production,Manual,Comp1,Service,Consulting,Strategic,False,False
+C003,Create Purchase Order,2024-01-01 10:00:00,UserF,200,5,VendorZ,Standard PO,Indirect,IT,Software,ERP,Comp2,License,SaaS,Cloud,True,True
+C003,Record Invoice Receipt,2024-01-02 11:00:00,UserF,250,5,VendorZ,Standard PO,Indirect,IT,Software,ERP,Comp2,License,SaaS,Cloud,True,True
+C003,Clear Invoice,2024-01-03 12:00:00,UserG,250,5,VendorZ,Standard PO,Indirect,IT,Software,ERP,Comp2,License,SaaS,Cloud,True,True

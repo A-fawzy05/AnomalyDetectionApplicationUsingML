@@ -4,7 +4,7 @@ Ingester for CSV event logs.
 
 from typing import Union, IO
 import pandas as pd
-from p2p_anomaly_api.ingestion.base import BaseIngester
+from ingestion.base import BaseIngester
 
 
 class CSVIngester(BaseIngester):
@@ -17,3 +17,4 @@ class CSVIngester(BaseIngester):
             df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
             
         return df
+

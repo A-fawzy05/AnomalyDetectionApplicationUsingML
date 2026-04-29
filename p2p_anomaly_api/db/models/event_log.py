@@ -5,7 +5,7 @@ ORM model for event logs.
 import uuid
 from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
-from p2p_anomaly_api.db.models import Base
+from db.models import Base
 
 
 class EventLog(Base):
@@ -27,3 +27,4 @@ class EventLog(Base):
     __table_args__ = (
         Index("idx_event_log_run_case", "run_id", "case_id"),
     )
+

@@ -4,11 +4,11 @@ Health check endpoint.
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from p2p_anomaly_api.db.session import get_db, verify_db_connection
-from p2p_anomaly_api.api.v1.schemas.response import HealthResponse
-from p2p_anomaly_api.models.isolation_forest import IsolationForestModel
-from p2p_anomaly_api.models.lstm_autoencoder import LSTMAutoencoderModel
-from p2p_anomaly_api.core.config import settings
+from db.session import get_db, verify_db_connection
+from api.v1.schemas.response import HealthResponse
+from models.isolation_forest import IsolationForestModel
+from models.lstm_autoencoder import LSTMAutoencoderModel
+from core.config import settings
 
 router = APIRouter()
 
@@ -27,3 +27,4 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "models_loaded": models_ok,
         "version": settings.VERSION
     }
+

@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from p2p_anomaly_api.db.models.analysis_run import AnalysisRun
+from db.models.analysis_run import AnalysisRun
 
 
 async def create_run(
@@ -78,3 +78,4 @@ async def list_runs(session: AsyncSession, page: int = 1, page_size: int = 10) -
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+

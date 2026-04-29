@@ -38,3 +38,4 @@ class FileTooLargeError(P2PError):
 class DatabaseError(P2PError):
     """Raised when a database operation fails"""
     pass
+

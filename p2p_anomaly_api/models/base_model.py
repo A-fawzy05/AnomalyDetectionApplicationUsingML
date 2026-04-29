@@ -14,3 +14,4 @@ class BaseModel(ABC):
     @abstractmethod
     def predict(self, data: Any) -> Any:
         pass
+

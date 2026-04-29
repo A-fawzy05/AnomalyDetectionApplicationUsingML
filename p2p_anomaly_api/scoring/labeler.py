@@ -2,48 +2,69 @@
 Logic for labeling anomaly types and calculating severity.
 """
 
-import pandas as pd
-import numpy as np
 import json
+import logging
 import os
-from p2p_anomaly_api.core.config import settings
 
-def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame) -> pd.DataFrame:
+import numpy as np
+import pandas as pd
+
+from core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     Applies deterministic rules to label anomalies and calculate severity.
+    Uses thresholds from artifacts.
     """
-    # Load thresholds from artifacts
-    thresholds = {}
-    thresh_path = os.path.join(settings.MODEL_DIR, "if_threshold.json")
-    if os.path.exists(thresh_path):
-        with open(thresh_path, 'r') as f:
-            thresholds = json.load(f)
+    # 1. Load thresholds from artifacts
+    p = os.path.join(settings.MODEL_DIR)
     
-    if_threshold = thresholds.get("threshold", 0.0)
-    # Mocking other thresholds
-    struct_threshold = 0.5
-    temp_threshold = 0.5
-    
-    # 1. Initialize flags
-    results_df["price_mismatch"] = False
-    results_df["three_way_match_failure"] = False
-    results_df["maverick_buying"] = False
-    results_df["temporal_delay"] = False
-    results_df["duplicate_invoice"] = False
-    results_df["unauthorized_vendor"] = False
-    results_df["quantity_variance"] = False
+    if_thresh = 0.0
+    if os.path.exists(os.path.join(p, "if_threshold.json")):
+        with open(os.path.join(p, "if_threshold.json"), "r") as f:
+            if_thresh = json.load(f)["threshold"]
+            
+    lstm_thresh = {"case": 0.5, "structural": 0.5, "temporal": 0.5}
+    if os.path.exists(os.path.join(p, "lstm_thresholds.json")):
+        with open(os.path.join(p, "lstm_thresholds.json"), "r") as f:
+            lstm_thresh = json.load(f)
 
-    # Rule-based flagging (simulated)
-    # Price Mismatch
-    results_df.loc[results_df["if_score"] > if_threshold, "price_mismatch"] = True
+    # 2. Flagging based on model scores
+    # Price Mismatch (Isolation Forest)
+    results_df["price_mismatch"] = (results_df["if_score"] >= if_thresh)
     
-    # Maverick Buying
-    results_df.loc[results_df["lstm_structural_score"] > struct_threshold, "maverick_buying"] = True
-    
-    # Temporal Delay
-    results_df.loc[results_df["lstm_temporal_score"] > temp_threshold, "temporal_delay"] = True
+    # Three-Way Match Failure (Hybrid Score)
+    # The flag is already computed in merger.py using compute_hybrid_score
+    # but we ensure it's mapped to the canonical flag name
+    if "three_way_match_flag" in results_df.columns:
+        results_df["three_way_match_failure"] = results_df["three_way_match_flag"].astype(bool)
+    else:
+        results_df["three_way_match_failure"] = False
 
-    # 2. Primary Anomaly Type Priority
+    # Maverick Buying (LSTM Structural + Short Case)
+    if "maverick_buying_flag" in results_df.columns:
+        results_df["maverick_buying"] = results_df["maverick_buying_flag"].astype(bool)
+    else:
+        results_df["maverick_buying"] = (results_df["lstm_structural_score"] >= lstm_thresh["structural"] * 1.5)
+
+    # Temporal Delay (LSTM Temporal)
+    if "temporal_delay_flag" in results_df.columns:
+        results_df["temporal_delay"] = results_df["temporal_delay_flag"].astype(bool)
+    else:
+        results_df["temporal_delay"] = (results_df["lstm_temporal_score"] >= lstm_thresh["temporal"])
+
+    # Placeholder for other flags (simulated or rule-based)
+    if "duplicate_invoice" not in results_df.columns:
+        results_df["duplicate_invoice"] = False
+    if "unauthorized_vendor" not in results_df.columns:
+        results_df["unauthorized_vendor"] = False
+    if "quantity_variance" not in results_df.columns:
+        results_df["quantity_variance"] = False
+
+    # 3. Primary Anomaly Type Priority
     # Three-Way Match Failure > Price Mismatch > Duplicate Invoice > 
     # Unauthorized Vendor > Maverick Buying > Temporal Delay > Quantity Variance
     
@@ -62,15 +83,19 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame) -> pd.DataFrame
     for flag_col, label in priority_list:
         results_df.loc[(results_df[flag_col] == True) & (results_df["anomaly_type"].isna()), "anomaly_type"] = label
 
-    # 3. Severity Score
-    # severity_score = 0.4 * IF + 0.4 * LSTM + 0.2 * Flags
+    # 4. Severity Score
+    # severity_score = 0.4 * IF_z + 0.4 * LSTM_z + 0.2 * Flags
+    # We use z-scores if available for better resolution
+    if_part = np.clip(results_df.get("if_score_z", results_df["if_score"]), 0, 2) / 2.0 * 0.4
+    
+    # LSTM part
+    lstm_score = results_df.get("hybrid_3way_score", results_df["lstm_case_score"])
+    lstm_part = np.clip(lstm_score, 0, 1) * 0.4
+    
+    # Flag part
     n_flags = results_df[["price_mismatch", "three_way_match_failure", "maverick_buying", 
                           "temporal_delay", "duplicate_invoice", "unauthorized_vendor", 
                           "quantity_variance"]].sum(axis=1)
-    
-    # Simple normalization for demonstration
-    if_part = np.clip(results_df["if_score"], 0, 1) * 0.4
-    lstm_part = np.clip(results_df["lstm_case_score"], 0, 1) * 0.4
     flag_part = np.clip(n_flags / 3.0, 0, 1) * 0.2
     
     results_df["severity_score"] = if_part + lstm_part + flag_part

@@ -1,76 +1,233 @@
 """
-Feature engineering at the case level.
+Case-level feature engineering for inference.
+Must produce exactly 2117 columns matching train_columns.pkl.
+Pipeline: raw events → aggregate → one-hot encode → reindex to train_columns.
 """
+import json
+import logging
+from pathlib import Path
 
-import pandas as pd
-import numpy as np
 import joblib
-import os
-from p2p_anomaly_api.core.config import settings
+import numpy as np
+import pandas as pd
+
+from core.config import settings
+
+logger = logging.getLogger(__name__)
+
+NUMERIC_FEATURES = [
+    "case_event_count", "unique_activities",
+    "avg_time_since_last_event_hours", "max_time_since_last_event_hours",
+    "off_hours_ratio", "off_hours_count",
+    "avg_unit_price", "max_unit_price",
+    "avg_price_deviation", "max_abs_price_deviation",
+    "case_duration_hours", "events_per_hour",
+    "start_hour", "start_dayofweek",
+    "case_amount", "case_quantity", "unit_price_case",
+    "is_over_threshold",
+    "price_deviation_from_mean_case",
+    "vendor_case_frequency", "user_case_frequency",
+    "user_unique_vendors", "user_vendor_entropy",
+    "group_workload",
+]
+
+CATEGORICAL_COLS = [
+    "case:Document Type", "case:Spend area text",
+    "case:Sub spend area text", "case:Spend classification text",
+    "case:Source", "case:Company", "case:Item Type",
+    "case:Item Category", "case:Name",
+    "case:GR-Based Inv. Verif.", "case:Goods Receipt",
+]
+
+DROP_COLS = [
+    "case:concept:name", "case_start_time", "case_end_time",
+    "case_start_hour_bucket",
+    "case:Vendor", "User", "org:resource",
+    "case:Purchasing Document", "case:Item",
+    "category_mean_unit_price_case",
+]
+
+
+def _load_artifacts():
+    p = Path(settings.MODEL_DIR)
+    train_columns   = joblib.load(p / "train_columns.pkl")
+    category_means  = json.loads((p / "category_means.json").read_text())
+    vendor_freq     = json.loads((p / "vendor_freq.json").read_text())
+    user_freq       = json.loads((p / "user_freq.json").read_text())
+    user_entropy    = json.loads((p / "user_entropy.json").read_text())
+    user_vendor_map = json.loads((p / "user_vendor_map.json").read_text())
+    group_workload  = json.loads((p / "group_workload.json").read_text())
+    return (train_columns, category_means, vendor_freq,
+            user_freq, user_entropy, user_vendor_map, group_workload)
+
 
 def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Transforms event-level DataFrame into case-level features.
+    Build the 2117-column case feature matrix from a flat events DataFrame.
+    df must have canonical column names (case_id, activity, timestamp,
+    resource, amount, quantity, vendor, plus all case:* columns).
     """
-    # 1. Group by case_id
-    grouped = df.sort_values("timestamp").groupby("case_id")
-    
-    # 2. Timing Features
-    case_duration = grouped["timestamp"].agg(lambda x: (x.max() - x.min()).total_seconds() / 3600)
-    
-    def off_hours_ratio(ts_series):
-        # Off hours: 6 PM to 8 AM and weekends
-        hours = ts_series.dt.hour
-        days = ts_series.dt.dayofweek
-        is_off = ((hours >= 18) | (hours < 8) | (days >= 5))
-        return is_off.mean()
+    (train_columns, category_means, vendor_freq,
+     user_freq, user_entropy, user_vendor_map, group_workload) = _load_artifacts()
 
-    off_hours = grouped["timestamp"].apply(off_hours_ratio)
-    
-    # 3. Financial Features
-    case_amount = grouped["amount"].max()
-    
-    # 4. Categorical / Frequency (Placeholders - normally joined with training stats)
-    # vendor_case_frequency, etc.
-    
-    # Combine
-    case_df = pd.DataFrame({
-        "case_duration_hours": case_duration,
-        "off_hours_ratio": off_hours,
-        "amount": case_amount,
-        # Add more features as per spec
-    })
-    
-    # For categorical columns, we should take the first occurrence from the PO object
-    static_cols = [
-        "vendor", "document_type", "spend_area", "sub_spend_area",
-        "spend_classification", "source", "company", "item_type",
-        "item_category", "gr_based_inv_verif", "goods_receipt"
-    ]
-    for col in static_cols:
-        if col in df.columns:
-            case_df[col] = grouped[col].first()
-        else:
-            case_df[col] = "Unknown"
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+    df["amount"]    = pd.to_numeric(df["amount"],   errors="coerce").fillna(0)
+    df["quantity"]  = pd.to_numeric(df["quantity"], errors="coerce").fillna(0)
+    df["hour"]      = df["timestamp"].dt.hour.fillna(0)
+    df["dayofweek"] = df["timestamp"].dt.dayofweek.fillna(0)
 
-    # One-hot encoding and aligning with training columns
-    case_df_encoded = pd.get_dummies(case_df)
-    
-    # Load training columns
-    train_cols_path = os.path.join(settings.MODEL_DIR, "train_columns.pkl")
-    if os.path.exists(train_cols_path):
-        train_cols = joblib.load(train_cols_path)
-        # Reindex to match training columns
-        case_df_encoded = case_df_encoded.reindex(columns=train_cols, fill_value=0)
-    
-    # Apply scaling
-    scaler_path = os.path.join(settings.MODEL_DIR, "scaler.pkl")
-    if os.path.exists(scaler_path):
-        scaler = joblib.load(scaler_path)
-        # Handle cases where feature count might differ if train_columns wasn't used correctly
-        # But here we reindexed, so it should match
-        scaled_data = scaler.transform(case_df_encoded)
-        case_df_scaled = pd.DataFrame(scaled_data, columns=case_df_encoded.columns, index=case_df_encoded.index)
-        return case_df_scaled
-        
-    return case_df_encoded
+    def is_off_hours(ts):
+        if pd.isna(ts): return 0
+        return int((ts.dayofweek >= 5) or (ts.hour < 5) or (ts.hour >= 23))
+
+    df["is_off_hours_flag"] = df["timestamp"].apply(is_off_hours).astype("int8")
+    df["unit_price"] = np.where(
+        df["quantity"] > 0,
+        df["amount"] / df["quantity"],
+        df["amount"]
+    )
+    df["time_since_last"] = (
+        df.groupby("case_id")["timestamp"]
+          .diff().dt.total_seconds().div(3600).fillna(0)
+    )
+
+    # ── Step 1: Aggregate to case level ──────────────────────────────────────
+    grp = df.groupby("case_id")
+
+    case_agg = grp.agg(
+        case_start_time                 =("timestamp", "min"),
+        case_end_time                   =("timestamp", "max"),
+        case_event_count                =("activity",  "size"),
+        unique_activities               =("activity",  "nunique"),
+        avg_time_since_last_event_hours =("time_since_last", "mean"),
+        max_time_since_last_event_hours =("time_since_last", "max"),
+        off_hours_ratio                 =("is_off_hours_flag", "mean"),
+        off_hours_count                 =("is_off_hours_flag", "sum"),
+        avg_unit_price                  =("unit_price", "mean"),
+        max_unit_price                  =("unit_price", "max"),
+        avg_price_deviation             =("unit_price", "mean"),  # placeholder
+        max_abs_price_deviation         =("unit_price", "max"),   # placeholder
+    ) # Removed .reset_index() to keep case_id as index
+
+    case_agg["case_duration_hours"] = (
+        case_agg["case_end_time"] - case_agg["case_start_time"]
+    ).dt.total_seconds().div(3600)
+    case_agg["events_per_hour"] = (
+        case_agg["case_event_count"]
+        / case_agg["case_duration_hours"].replace(0, np.nan)
+    )
+    case_agg["start_hour"]      = case_agg["case_start_time"].dt.hour
+    case_agg["start_dayofweek"] = case_agg["case_start_time"].dt.dayofweek
+    case_agg["case_start_hour_bucket"] = (
+        case_agg["case_start_time"].dt.floor("h")
+    )
+
+    # Static columns (first value per case)
+    static_cols = [c for c in [
+        "vendor", "resource",
+        "case:Document Type", "case:Spend area text",
+        "case:Sub spend area text", "case:Spend classification text",
+        "case:Source", "case:Company", "case:Item Type",
+        "case:Item Category", "case:Name",
+        "case:GR-Based Inv. Verif.", "case:Goods Receipt",
+    ] if c in df.columns]
+
+    static_df = (
+        df.groupby("case_id")[static_cols]
+          .agg(lambda s: s.dropna().iloc[0] if len(s.dropna()) > 0 else np.nan)
+    )
+    case_agg = case_agg.join(static_df, how="left")
+    case_agg = case_agg.join(
+        grp["amount"].first().rename("case_amount"), how="left"
+    )
+    case_agg = case_agg.join(
+        grp["quantity"].first().rename("case_quantity"), how="left"
+    )
+    case_agg["unit_price_case"] = np.where(
+        case_agg["case_quantity"].fillna(0) > 0,
+        case_agg["case_amount"] / case_agg["case_quantity"],
+        case_agg["case_amount"]
+    )
+    case_agg["is_over_threshold"] = (case_agg["case_amount"] > 500).astype("int8")
+
+    # ── Step 2: Apply train-only lookup maps ──────────────────────────────────
+    item_cat_col = "case:Item Category"
+    if item_cat_col in case_agg.columns:
+        case_agg["category_mean_unit_price_case"] = (
+            case_agg[item_cat_col]
+            .astype(str)
+            .map(category_means)
+            .fillna(category_means.get("__global__", case_agg["unit_price_case"].mean()))
+        )
+    else:
+        case_agg["category_mean_unit_price_case"] = (
+            category_means.get("__global__", 0.0)
+        )
+    case_agg["price_deviation_from_mean_case"] = (
+        case_agg["unit_price_case"] - case_agg["category_mean_unit_price_case"]
+    )
+
+    if "vendor" in case_agg.columns:
+        case_agg["vendor_case_frequency"] = (
+            case_agg["vendor"].astype(str).map(vendor_freq).fillna(0)
+        )
+    else:
+        case_agg["vendor_case_frequency"] = 0
+
+    if "resource" in case_agg.columns:
+        case_agg["user_case_frequency"] = (
+            case_agg["resource"].astype(str).map(user_freq).fillna(0)
+        )
+        case_agg["user_unique_vendors"] = (
+            case_agg["resource"].astype(str).map(user_vendor_map).fillna(0)
+        )
+        case_agg["user_vendor_entropy"] = (
+            case_agg["resource"].astype(str).map(user_entropy).fillna(0)
+        )
+    else:
+        case_agg["user_case_frequency"]  = 0
+        case_agg["user_unique_vendors"]  = 0
+        case_agg["user_vendor_entropy"]  = 0
+
+    if "case:Spend area text" in case_agg.columns:
+        wl_key = (
+            case_agg["case:Spend area text"].astype(str)
+            + "__"
+            + case_agg["case_start_hour_bucket"].astype(str)
+        )
+        case_agg["group_workload"] = wl_key.map(group_workload).fillna(0)
+    else:
+        case_agg["group_workload"] = 0
+
+    # ── Step 3: Drop metadata columns ────────────────────────────────────────
+    case_agg = case_agg.drop(
+        columns=[c for c in DROP_COLS if c in case_agg.columns],
+        errors="ignore"
+    )
+
+    # ── Step 4: One-hot encode categoricals ───────────────────────────────────
+    # CRITICAL: cast to str first — prevents bool/float columns being
+    # silently skipped by get_dummies
+    existing_cats = [c for c in CATEGORICAL_COLS if c in case_agg.columns]
+    case_agg[existing_cats] = case_agg[existing_cats].astype(str)
+    case_agg = pd.get_dummies(case_agg, columns=existing_cats, dummy_na=True)
+    case_agg = case_agg.replace([np.inf, -np.inf], np.nan).fillna(0)
+
+    # ── Step 5: Reindex to match training columns exactly ─────────────────────
+    # This is the line that fixes the 13 vs 2117 mismatch at inference time.
+    # Missing columns (unseen categories) are filled with 0.
+    # Extra columns (not in training) are dropped.
+    before = case_agg.shape[1]
+    case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
+    after = case_agg.shape[1]
+
+    logger.info(
+        f"case_features: {before} cols before reindex → "
+        f"{after} cols after reindex (must equal {len(train_columns)})"
+    )
+    assert after == len(train_columns), (
+        f"Feature count mismatch: got {after}, expected {len(train_columns)}"
+    )
+
+    return case_agg

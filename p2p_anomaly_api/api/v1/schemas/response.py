@@ -90,3 +90,4 @@ class HealthResponse(BaseModel):
     db_connected: bool
     models_loaded: bool
     version: str
+

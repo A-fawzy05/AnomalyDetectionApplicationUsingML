@@ -1,56 +1,47 @@
 """
-Sequence feature engineering for LSTM Autoencoder.
+Event-level and sequence-level feature engineering for LSTM Autoencoder.
 """
-
-import pandas as pd
 import numpy as np
-import json
-import os
-import joblib
-from p2p_anomaly_api.core.config import settings
+import pandas as pd
 
-
-def build_sequences(df: pd.DataFrame, max_len: int = 10) -> np.ndarray:
+def prep_event_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Builds padded sequence tensors for LSTM model.
+    Engineers event-level features required by the LSTM Autoencoder.
+    Adds: time_since_last_event_hours, event_index_norm, is_off_hours,
+          log_amount, hour_sin, hour_cos, dow_sin, dow_cos.
     """
-    # 1. Load activity vocabulary
-    vocab_path = os.path.join(settings.MODEL_DIR, "vocab.json")
-    if os.path.exists(vocab_path):
-        with open(vocab_path, 'r') as f:
-            vocab = json.load(f)
-    else:
-        # Fallback: create from unique activities in df
-        unique_acts = df["activity"].unique()
-        vocab = {act: i + 1 for i, act in enumerate(unique_acts)}
-        vocab["PADDING"] = 0
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    df = df.sort_values(["case_id", "timestamp"])
 
-    # 2. Sort and group
-    df_sorted = df.sort_values(["case_id", "timestamp"])
-    
-    sequences = []
-    case_ids = df_sorted["case_id"].unique()
-    
-    # Simple numerical features to include in sequence
-    # In a real app, this would be more comprehensive
-    df_sorted["amount_norm"] = df_sorted["amount"] / (df_sorted["amount"].max() + 1e-9)
-    df_sorted["quantity_norm"] = df_sorted["quantity"] / (df_sorted["quantity"].max() + 1e-9)
+    # 1. time_since_last_event_hours
+    df["time_since_last_event_hours"] = (
+        df.groupby("case_id")["timestamp"]
+        .diff()
+        .dt.total_seconds()
+        .fillna(0) / 3600.0
+    )
 
-    for cid in case_ids:
-        case_events = df_sorted[df_sorted["case_id"] == cid].tail(max_len)
-        
-        seq_data = []
-        for _, row in case_events.iterrows():
-            # Activity one-hot or index
-            act_idx = vocab.get(row["activity"], 0)
-            # Combine with numericals
-            event_vec = [act_idx, row["amount_norm"], row["quantity_norm"]]
-            seq_data.append(event_vec)
-        
-        # Padding
-        while len(seq_data) < max_len:
-            seq_data.insert(0, [0.0] * 3) # Pad at the beginning
-            
-        sequences.append(seq_data)
-        
-    return np.array(sequences)
+    # 2. event_index_norm (within case)
+    df["event_index"] = df.groupby("case_id").cumcount()
+    # Normalize by typical MAX_LEN=10
+    df["event_index_norm"] = df["event_index"] / 10.0
+
+    # 3. is_off_hours
+    def _is_off(ts):
+        return 1 if (ts.hour < 8 or ts.hour >= 18 or ts.dayofweek >= 5) else 0
+    df["is_off_hours"] = df["timestamp"].apply(_is_off).astype("int8")
+
+    # 4. log_amount
+    df["log_amount"] = np.log1p(pd.to_numeric(df["amount"], errors="coerce").fillna(0))
+
+    # 5. Cyclical Time Features
+    hour = df["timestamp"].dt.hour
+    dow  = df["timestamp"].dt.dayofweek
+    
+    df["hour_sin"] = np.sin(2 * np.pi * hour / 24.0)
+    df["hour_cos"] = np.cos(2 * np.pi * hour / 24.0)
+    df["dow_sin"]  = np.sin(2 * np.pi * dow / 7.0)
+    df["dow_cos"]  = np.cos(2 * np.pi * dow / 7.0)
+
+    return df

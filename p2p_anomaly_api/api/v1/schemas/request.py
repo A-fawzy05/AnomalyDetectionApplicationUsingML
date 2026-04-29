@@ -8,3 +8,4 @@ from pydantic import BaseModel
 
 class AnalysisRequest(BaseModel):
     file_type: Optional[str] = None
+

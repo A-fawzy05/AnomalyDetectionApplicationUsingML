@@ -6,9 +6,9 @@ from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from p2p_anomaly_api.db.session import get_db
-from p2p_anomaly_api.db.repositories import run_repository, case_repository, phase_repository
-from p2p_anomaly_api.api.v1.schemas.response import RunListItem, AnalysisResponse
+from db.session import get_db
+from db.repositories import run_repository, case_repository, phase_repository
+from api.v1.schemas.response import RunListItem, AnalysisResponse
 
 router = APIRouter()
 
@@ -99,3 +99,4 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
         "process_flow_map": flow_map,
         "real_time_feed": [item for item in anomaly_cases[:10]]
     }
+

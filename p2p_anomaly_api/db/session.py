@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from p2p_anomaly_api.core.config import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +56,4 @@ async def verify_db_connection():
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         return False
+

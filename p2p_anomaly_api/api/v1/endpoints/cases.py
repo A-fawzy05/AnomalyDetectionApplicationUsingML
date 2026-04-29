@@ -6,9 +6,9 @@ from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from p2p_anomaly_api.db.session import get_db
-from p2p_anomaly_api.db.repositories import case_repository
-from p2p_anomaly_api.api.v1.schemas.response import CaseListResponse, AnomalyCase
+from db.session import get_db
+from db.repositories import case_repository
+from api.v1.schemas.response import CaseListResponse, AnomalyCase
 
 router = APIRouter()
 
@@ -62,3 +62,4 @@ async def get_cases(
         "page": page,
         "page_size": page_size
     }
+

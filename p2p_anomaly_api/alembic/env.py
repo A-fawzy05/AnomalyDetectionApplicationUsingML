@@ -1,5 +1,10 @@
 import asyncio
+import os
+import sys
 from logging.config import fileConfig
+
+# Add the project root to sys.path
+sys.path.insert(0, os.getcwd())
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -18,7 +23,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from p2p_anomaly_api.db.models import metadata
+from db.models import metadata
 target_metadata = metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -88,3 +93,4 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())
+

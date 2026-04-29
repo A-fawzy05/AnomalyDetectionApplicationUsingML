@@ -5,7 +5,7 @@ ORM model for phase summaries.
 import uuid
 from sqlalchemy import Column, String, Integer, Numeric, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from p2p_anomaly_api.db.models import Base
+from db.models import Base
 
 
 class PhaseSummary(Base):
@@ -17,3 +17,4 @@ class PhaseSummary(Base):
     total_cases = Column(Integer, nullable=False)
     anomalies = Column(Integer, nullable=False)
     anomaly_rate = Column(Numeric(6, 4))
+

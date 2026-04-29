@@ -4,9 +4,11 @@ Pytest configuration and fixtures.
 
 import pytest
 import asyncio
+import sqlalchemy as sa
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from p2p_anomaly_api.db.models import Base
-from p2p_anomaly_api.core.config import settings
+from db.models import Base
+from core.config import settings
 
 # Use a test database URL or a separate schema
 TEST_DATABASE_URL = settings.DATABASE_URL + "_test"
@@ -28,3 +30,4 @@ async def test_engine():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+

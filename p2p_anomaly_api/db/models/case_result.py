@@ -4,10 +4,10 @@ ORM model for case results.
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Numeric, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from p2p_anomaly_api.db.models import Base
+from db.models import Base
 
 
 class CaseResult(Base):
@@ -38,3 +38,4 @@ class CaseResult(Base):
     )
 
     flags = relationship("CaseFlag", back_populates="case_result", uselist=False, cascade="all, delete-orphan")
+

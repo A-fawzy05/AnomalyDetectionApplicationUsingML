@@ -7,7 +7,7 @@ from typing import Union, IO
 import pandas as pd
 import tempfile
 import os
-from p2p_anomaly_api.ingestion.base import BaseIngester
+from ingestion.base import BaseIngester
 
 
 class XESIngester(BaseIngester):
@@ -31,3 +31,4 @@ class XESIngester(BaseIngester):
             df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
             
         return df
+

@@ -6,8 +6,8 @@ import pytest
 import pandas as pd
 import json
 import io
-from p2p_anomaly_api.ingestion.ocel2_ingester import OCEL2Ingester
-from p2p_anomaly_api.core.exceptions import IngestionError
+from ingestion.ocel2_ingester import OCEL2Ingester
+from core.exceptions import IngestionError
 
 def test_ocel2_ingester_valid():
     ingester = OCEL2Ingester()
@@ -45,3 +45,4 @@ def test_ocel2_ingester_invalid_version():
     }
     with pytest.raises(IngestionError, match="ocel:global-log.ocel:version must equal '2.0'"):
         ingester.ingest(io.StringIO(json.dumps(invalid_data)))
+

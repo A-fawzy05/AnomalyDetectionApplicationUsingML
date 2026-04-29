@@ -144,3 +144,4 @@ def downgrade() -> None:
     op.drop_table('analysis_runs', schema='p2p')
     
     op.execute("DROP SCHEMA p2p CASCADE")
+

@@ -7,13 +7,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
-from p2p_anomaly_api.api.router import api_router
-from p2p_anomaly_api.core.config import settings
-from p2p_anomaly_api.db.session import verify_db_connection, engine
-from p2p_anomaly_api.models.isolation_forest import IsolationForestModel
-from p2p_anomaly_api.models.lstm_autoencoder import LSTMAutoencoderModel
-from p2p_anomaly_api.core.exceptions import P2PError
+from api.router import api_router
+from core.config import settings
+from db.session import verify_db_connection, engine
+from db.models import Base
+# Import models here to ensure they are registered with Base.metadata
+from db.models.analysis_run import AnalysisRun
+from db.models.case_result import CaseResult
+from db.models.case_flag import CaseFlag
+from db.models.phase_summary import PhaseSummary
+from db.models.event_log import EventLog
+
+from models.isolation_forest import IsolationForestModel
+from models.lstm_autoencoder import LSTMAutoencoderModel
+from core.exceptions import P2PError
 
 # Configure logging
 logging.basicConfig(
@@ -28,8 +37,20 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting P2P Anomaly Detection API...")
     
-    # 1. Verify DB connection
-    await verify_db_connection()
+    # 1. Verify DB connection and Create Tables
+    db_ok = await verify_db_connection()
+    if db_ok:
+        try:
+            async with engine.begin() as conn:
+                # Create schema if it doesn't exist
+                await conn.execute(text("CREATE SCHEMA IF NOT EXISTS p2p"))
+                # Enable pgcrypto for UUIDs
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
+                # Create all tables
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database schema and tables initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize database tables: {e}")
     
     # 2. Load ML Models
     try:
@@ -80,4 +101,5 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("p2p_anomaly_api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
