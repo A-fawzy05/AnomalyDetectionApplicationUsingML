@@ -100,3 +100,17 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
         "real_time_feed": [item for item in anomaly_cases[:10]]
     }
 
+
+@router.delete("/runs/{run_id}")
+async def delete_run(run_id: UUID, db: AsyncSession = Depends(get_db)):
+    success = await run_repository.delete_run(db, run_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {"message": f"Run {run_id} deleted successfully"}
+
+
+@router.delete("/runs")
+async def delete_all_runs(db: AsyncSession = Depends(get_db)):
+    count = await run_repository.delete_all_runs(db)
+    return {"message": f"Deleted {count} runs successfully"}
+

@@ -214,13 +214,38 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     case_agg = pd.get_dummies(case_agg, columns=existing_cats, dummy_na=True)
     case_agg = case_agg.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # ── Step 5: Reindex to match training columns exactly ─────────────────────
+    # ── Step 5: Preserve vendor and amount data before reindex ───────────────────────
+    vendor_data = None
+    amount_data = None
+    
+    if "vendor" in case_agg.columns:
+        vendor_data = case_agg["vendor"].copy()
+    if "amount" in case_agg.columns:
+        amount_data = case_agg["amount"].copy()
+        
+    # Remove vendor and amount columns before reindex to avoid sklearn scaler error
+    columns_to_drop = []
+    if "vendor" in case_agg.columns:
+        columns_to_drop.append("vendor")
+    if "amount" in case_agg.columns:
+        columns_to_drop.append("amount")
+    if columns_to_drop:
+        case_agg = case_agg.drop(columns=columns_to_drop)
+    
+    # Reindex to match training columns exactly ───────────────────────────────
     # This is the line that fixes the 13 vs 2117 mismatch at inference time.
     # Missing columns (unseen categories) are filled with 0.
     # Extra columns (not in training) are dropped.
     before = case_agg.shape[1]
     case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
     after = case_agg.shape[1]
+    
+    # Store vendor and amount data in separate attributes for the merger to access
+    # This avoids sklearn scaler issues while preserving data for API response
+    if vendor_data is not None:
+        case_agg.attrs['_vendor_data'] = vendor_data
+    if amount_data is not None:
+        case_agg.attrs['_amount_data'] = amount_data
 
     logger.info(
         f"case_features: {before} cols before reindex → "

@@ -88,6 +88,14 @@ async def analyze_event_log(
         # Clean NaN values for JSON/DB compatibility
         labeled = labeled.where(pd.notnull(labeled), None)
         
+        # 12.5. Restore vendor data from original ingested DataFrame
+        # This fixes the vendor preservation issue by directly mapping vendor from original data
+        if "vendor" in df.columns and "case_id" in labeled.columns:
+            # Create vendor mapping from original ingested data
+            vendor_map = df.groupby("case_id")["vendor"].first()
+            # Map vendor data to labeled results
+            labeled["supplier"] = labeled["case_id"].map(vendor_map)
+        
         # 13. Build process flow map
         flow_map = build_process_flow_map(df, labeled)
         
@@ -131,15 +139,42 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
     """
     Identifies presence of P2P phases and computes missing 3-way steps.
     """
+    def map_phase(activity: str) -> str:
+        # Exact match first (OCEL2 activity names)
+        EXACT_MAP = {
+            'Approve Purchase Order':                   'Purchase Order Creation',
+            'Create Purchase Order':                    'Purchase Order Creation',
+            'Create Purchase Requisition':              'Purchase Requisition',
+            'Approve Purchase Requisition':             'Purchase Requisition',
+            'Delegate Purchase Requisition Approval':   'Purchase Requisition',
+            'Create Goods Receipt':                     'Goods Receipt',
+            'Create Invoice Receipt':                   'Invoice Verification',
+            'Perform Two-Way Match':                    'Invoice Verification',
+            'Create Request for Quotation':             'Purchase Requisition',
+            'Execute Payment':                          'Payment Processing',
+        }
+        if activity in EXACT_MAP:
+            return EXACT_MAP[activity]
+
+        # Keyword fallback (BPI 2019 activity names)
+        a = str(activity).lower()
+        if 'requisition' in a:                                                      return 'Purchase Requisition'
+        if 'purchase order' in a or 'srm' in a or 'order item' in a:               return 'Purchase Order Creation'
+        if 'goods receipt' in a:                                                    return 'Goods Receipt'
+        if 'invoice' in a or 'clear invoice' in a or 'vendor creates invoice' in a: return 'Invoice Verification'
+        if 'payment' in a:                                                          return 'Payment Processing'
+        return 'Other'
+
     case_groups = df.groupby("case_id")["activity"].unique()
     rows = []
     for case_id, activities in case_groups.items():
-        acts_lower = [str(a).lower() for a in activities]
-        has_pr = any("requisition" in a for a in acts_lower)
-        has_po = any("order" in a for a in acts_lower)
-        has_gr = any("receipt" in a or "service entry" in a for a in acts_lower)
-        has_inv = any("invoice" in a for a in acts_lower)
-        has_pay = any("payment" in a or "clear" in a for a in acts_lower)
+        phases = [map_phase(a) for a in activities]
+        
+        has_pr = any(p == 'Purchase Requisition' for p in phases)
+        has_po = any(p == 'Purchase Order Creation' for p in phases)
+        has_gr = any(p == 'Goods Receipt' for p in phases)
+        has_inv = any(p == 'Invoice Verification' for p in phases)
+        has_pay = any(p == 'Payment Processing' for p in phases)
         
         # 3-way match: PO, GR, INV
         missing_3way = 0

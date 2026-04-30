@@ -30,12 +30,18 @@ def merge_scores(
     Returns:
         Merged DataFrame with all scores and flags attached.
     """
-    # Initialize result with case_id column and clear index to avoid name collision
+    # Initialize result with all case_df columns to preserve vendor, amount, etc.
     if "case_id" in case_df.columns:
-        result = case_df[["case_id"]].copy()
+        result = case_df.copy()
     else:
-        # Create a fresh DataFrame with case_id as a column, stripping the index name
-        result = pd.DataFrame({"case_id": case_df.index.values})
+        # Create a fresh DataFrame with case_id as a column, preserving all original columns
+        result = case_df.reset_index(drop=False)
+    
+    # Add vendor and amount data from case_df attributes if available
+    if hasattr(case_df, '_vendor_data') and case_df._vendor_data is not None:
+        result["vendor"] = case_df._vendor_data
+    if hasattr(case_df, '_amount_data') and case_df._amount_data is not None:
+        result["amount"] = case_df._amount_data
 
     # Attach IF scores and z-normalize using training stats
     result["if_score"]   = if_scores

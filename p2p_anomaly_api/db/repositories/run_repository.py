@@ -79,3 +79,20 @@ async def list_runs(session: AsyncSession, page: int = 1, page_size: int = 10) -
     result = await session.execute(stmt)
     return result.scalars().all()
 
+
+async def delete_run(session: AsyncSession, run_id: UUID) -> bool:
+    run = await get_run(session, run_id)
+    if not run:
+        return False
+    await session.delete(run)
+    await session.commit()
+    return True
+
+
+async def delete_all_runs(session: AsyncSession) -> int:
+    from sqlalchemy import delete
+    stmt = delete(AnalysisRun)
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.rowcount
+
