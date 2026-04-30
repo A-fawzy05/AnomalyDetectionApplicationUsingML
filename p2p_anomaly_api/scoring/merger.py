@@ -39,9 +39,19 @@ def merge_scores(
     
     # Restore vendor and amount data from case_df attributes if available
     if hasattr(case_df, '_vendor_data') and case_df._vendor_data is not None:
-        result["vendor"] = case_df._vendor_data
+        # Ensure proper alignment by case_id
+        vendor_data = case_df._vendor_data
+        if 'case_id' in result.columns and vendor_data.index.name == 'case_id':
+            result["vendor"] = vendor_data.reindex(result['case_id']).values
+        else:
+            result["vendor"] = vendor_data.values
     if hasattr(case_df, '_amount_data') and case_df._amount_data is not None:
-        result["amount"] = case_df._amount_data
+        # Ensure proper alignment by case_id
+        amount_data = case_df._amount_data
+        if 'case_id' in result.columns and amount_data.index.name == 'case_id':
+            result["amount"] = amount_data.reindex(result['case_id']).values
+        else:
+            result["amount"] = amount_data.values
 
     # Attach IF scores and z-normalize using training stats
     result["if_score"]   = if_scores

@@ -89,6 +89,18 @@ async def delete_run(session: AsyncSession, run_id: UUID) -> bool:
     return True
 
 
+async def get_latest_completed_run(session: AsyncSession) -> Optional[AnalysisRun]:
+    """Get the most recent completed run for delta calculations."""
+    stmt = (
+        select(AnalysisRun)
+        .where(AnalysisRun.status == "completed")
+        .order_by(AnalysisRun.created_at.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 async def delete_all_runs(session: AsyncSession) -> int:
     from sqlalchemy import delete
     stmt = delete(AnalysisRun)

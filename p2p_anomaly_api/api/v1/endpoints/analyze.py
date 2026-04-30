@@ -100,7 +100,7 @@ async def analyze_event_log(
         flow_map = build_process_flow_map(df, labeled)
         
         # 14. Compute summary
-        summary = _compute_summary(labeled)
+        summary = await _compute_summary(labeled, db)
         
         # 15. Persist results
         case_rows = _prepare_case_rows(labeled)
@@ -196,27 +196,85 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
     """
-    Computes anomaly rates per process phase.
+    Computes anomaly rates per process phase based on actual process flow completion.
+    Shows how cases flow through the P2P process with realistic decreasing numbers.
     """
-    phases = df["activity"].unique()
+    # Define the standard P2P process flow order
+    process_flow = [
+        "Create Request for Quotation",
+        "Create Purchase Order", 
+        "Approve Purchase Order",
+        "Create Goods Receipt",
+        "Execute Payment"
+    ]
+    
     flow_map = []
-    for phase in phases:
-        phase_cases = df[df["activity"] == phase]["case_id"].unique()
-        total_in_phase = len(phase_cases)
+    
+    # Build case activity matrix to understand process flow
+    case_activities = {}
+    for case_id in df['case_id'].unique():
+        activities = df[df['case_id'] == case_id]['activity'].unique()
+        case_activities[case_id] = set(activities)
+    
+    # Calculate realistic process flow by tracking case progression
+    for i, phase in enumerate(process_flow):
+        if phase not in df["activity"].values:
+            continue
+            
+        # Cases that have this specific activity
+        phase_cases = set(df[df["activity"] == phase]["case_id"].unique())
+        
+        # For process flow, we want to show realistic progression:
+        # RFQ: Only cases that actually use RFQ (optional)
+        # PO: All cases that create PO (main starting point)
+        # Approval: Cases that have both PO AND approval
+        # GR: Cases that have PO, approval, AND GR
+        # Payment: Cases that have PO, approval, GR, AND payment
+        
+        if phase == "Create Request for Quotation":
+            # RFQ is optional - only count cases that actually use it
+            total_in_phase = len(phase_cases)
+        elif phase == "Create Purchase Order":
+            # PO is the main entry point - count all PO cases
+            total_in_phase = len(phase_cases)
+        elif phase == "Approve Purchase Order":
+            # Only count cases that have both PO AND approval
+            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
+            approval_cases = phase_cases
+            total_in_phase = len(po_cases.intersection(approval_cases))
+        elif phase == "Create Goods Receipt":
+            # Only count cases that have PO, approval, AND GR
+            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
+            approval_cases = set(df[df["activity"] == "Approve Purchase Order"]["case_id"].unique())
+            gr_cases = phase_cases
+            total_in_phase = len(po_cases.intersection(approval_cases).intersection(gr_cases))
+        elif phase == "Execute Payment":
+            # Only count cases that have complete PO -> approval -> GR -> payment flow
+            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
+            approval_cases = set(df[df["activity"] == "Approve Purchase Order"]["case_id"].unique())
+            gr_cases = set(df[df["activity"] == "Create Goods Receipt"]["case_id"].unique())
+            payment_cases = phase_cases
+            total_in_phase = len(po_cases.intersection(approval_cases).intersection(gr_cases).intersection(payment_cases))
+        else:
+            total_in_phase = len(phase_cases)
+        
+        # Count anomalies for cases that reached this phase
         anomalies_in_phase = len(results_df[
             (results_df["case_id"].isin(phase_cases)) & 
             (results_df["anomaly_type"].notna())
         ])
+        
         flow_map.append({
             "phase": phase,
             "total_cases": total_in_phase,
             "anomalies": anomalies_in_phase,
             "anomaly_rate": anomalies_in_phase / total_in_phase if total_in_phase > 0 else 0
         })
+    
     return flow_map
 
 
-def _compute_summary(results_df: pd.DataFrame) -> dict:
+async def _compute_summary(results_df: pd.DataFrame, session=None) -> dict:
     total_cases = len(results_df)
     anomalous_cases = len(results_df[results_df["anomaly_type"].notna()])
     
@@ -225,12 +283,108 @@ def _compute_summary(results_df: pd.DataFrame) -> dict:
     if "case_duration_hours" in results_df:
         avg_proc = results_df["case_duration_hours"].mean() / 24.0
     
+    # Initialize delta values
+    delta_total_cases_pct = 0.0
+    delta_anomalous_cases_pct = 0.0
+    delta_anomaly_rate_pct = 0.0
+    delta_avg_processing_time_pct = 0.0
+    
+    # Calculate deltas if we have a session and previous runs
+    if session is not None:
+        from db.repositories.run_repository import get_latest_completed_run
+        
+        # Get previous run for delta calculations
+        previous_run = await get_latest_completed_run(session)
+        
+        if previous_run is not None:
+            # Calculate percentage changes
+            if previous_run.total_cases and previous_run.total_cases > 0:
+                delta_total_cases_pct = ((total_cases - previous_run.total_cases) / previous_run.total_cases) * 100
+            
+            if previous_run.anomalous_cases and previous_run.anomalous_cases > 0:
+                delta_anomalous_cases_pct = ((anomalous_cases - previous_run.anomalous_cases) / previous_run.anomalous_cases) * 100
+            
+            if previous_run.anomaly_rate is not None and previous_run.anomaly_rate > 0:
+                current_rate = anomalous_cases / total_cases if total_cases > 0 else 0
+                delta_anomaly_rate_pct = ((current_rate - float(previous_run.anomaly_rate)) / float(previous_run.anomaly_rate)) * 100
+            
+            if previous_run.avg_processing_time_days is not None and previous_run.avg_processing_time_days > 0:
+                delta_avg_processing_time_pct = ((avg_proc - float(previous_run.avg_processing_time_days)) / float(previous_run.avg_processing_time_days)) * 100
+    
     return {
         "total_cases": total_cases,
         "anomalous_cases": anomalous_cases,
         "anomaly_rate": anomalous_cases / total_cases if total_cases > 0 else 0,
-        "avg_processing_time_days": float(avg_proc)
+        "avg_processing_time_days": float(avg_proc),
+        "delta_total_cases_pct": delta_total_cases_pct,
+        "delta_anomalous_cases_pct": delta_anomalous_cases_pct,
+        "delta_anomaly_rate_pct": delta_anomaly_rate_pct,
+        "delta_avg_processing_time_pct": delta_avg_processing_time_pct
     }
+
+
+def _format_anomaly_type(anomaly_type):
+    """Format anomaly type for API response - handle list types, limit to max 2"""
+    try:
+        if pd.isna(anomaly_type) or anomaly_type is None:
+            return None
+        elif isinstance(anomaly_type, list):
+            # Limit to maximum 2 anomaly types
+            if len(anomaly_type) <= 2:
+                if len(anomaly_type) == 1:
+                    return anomaly_type[0]
+                else:
+                    return " | ".join(anomaly_type)
+            else:
+                # Select 2 most critical types based on priority
+                priority_order = [
+                    "Three-Way Match Failure",
+                    "Price Mismatch", 
+                    "Duplicate Invoice",
+                    "Unauthorized Vendor",
+                    "Maverick Buying",
+                    "Temporal Delay",
+                    "Quantity Variance"
+                ]
+                
+                # Filter and sort by priority
+                filtered_types = [t for t in anomaly_type if t in priority_order]
+                sorted_types = sorted(filtered_types, key=lambda x: priority_order.index(x))
+                
+                # Return top 2
+                top_types = sorted_types[:2]
+                return " | ".join(top_types)
+        else:
+            return anomaly_type
+    except (ValueError, TypeError):
+        # Handle array comparison issues
+        if hasattr(anomaly_type, '__len__') and len(anomaly_type) > 0:
+            if isinstance(anomaly_type, (list, tuple)):
+                if len(anomaly_type) <= 2:
+                    if len(anomaly_type) == 1:
+                        return str(anomaly_type[0])
+                    else:
+                        return " | ".join(str(x) for x in anomaly_type)
+                else:
+                    # Select 2 most critical types
+                    priority_order = [
+                        "Three-Way Match Failure",
+                        "Price Mismatch", 
+                        "Duplicate Invoice",
+                        "Unauthorized Vendor",
+                        "Maverick Buying",
+                        "Temporal Delay",
+                        "Quantity Variance"
+                    ]
+                    
+                    filtered_types = [str(x) for x in anomaly_type if str(x) in priority_order]
+                    sorted_types = sorted(filtered_types, key=lambda x: priority_order.index(x))
+                    top_types = sorted_types[:2]
+                    return " | ".join(top_types)
+            else:
+                return str(anomaly_type)
+        else:
+            return None
 
 
 def _prepare_case_rows(results_df: pd.DataFrame) -> list:
@@ -238,9 +392,9 @@ def _prepare_case_rows(results_df: pd.DataFrame) -> list:
     for _, row in results_df.iterrows():
         case_row = {
             "case_id": str(row["case_id"]),
-            "supplier": row.get("supplier"),
+            "supplier": row.get("vendor"),
             "amount": float(row.get("case_amount", 0.0)),
-            "anomaly_type": row.get("anomaly_type"),
+            "anomaly_type": _format_anomaly_type(row.get("anomaly_type")),
             "severity_score": float(row.get("severity_score", 0.0)),
             "severity_label": row.get("severity_label", "Low"),
             "if_score": float(row.get("if_score", 0.0)),
@@ -250,9 +404,9 @@ def _prepare_case_rows(results_df: pd.DataFrame) -> list:
             "off_hours_ratio": float(row.get("off_hours_ratio", 0.0)),
             "flags": {
                 "price_mismatch": bool(row.get("price_mismatch", False)),
-                "three_way_match_failure": bool(row.get("three_way_match_flag", False)),
-                "maverick_buying": bool(row.get("maverick_buying_flag", False)),
-                "temporal_delay": bool(row.get("temporal_delay_flag", False)),
+                "three_way_match_failure": bool(row.get("three_way_match_failure", False)),
+                "maverick_buying": bool(row.get("maverick_buying", False)),
+                "temporal_delay": bool(row.get("temporal_delay", False)),
                 "duplicate_invoice": bool(row.get("duplicate_invoice", False)),
                 "unauthorized_vendor": bool(row.get("unauthorized_vendor", False)),
                 "quantity_variance": bool(row.get("quantity_variance", False)),
@@ -270,30 +424,46 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
     for _, row in anomalies.iterrows():
         anomaly_cases.append({
             "case_id": str(row["case_id"]),
-            "supplier": row.get("supplier"),
+            "supplier": row.get("vendor"),
             "amount": float(row.get("case_amount", 0.0)),
-            "anomaly_type": row.get("anomaly_type"),
+            "anomaly_type": _format_anomaly_type(row.get("anomaly_type")),
             "severity_score": float(row.get("severity_score", 0.0)),
             "severity_label": row.get("severity_label", "Low"),
             "status": "Open",
             "detected_at": pd.Timestamp.now(tz="UTC"),
             "flags": {
                 "price_mismatch": bool(row.get("price_mismatch", False)),
-                "three_way_match_failure": bool(row.get("three_way_match_flag", False)),
-                "maverick_buying": bool(row.get("maverick_buying_flag", False)),
-                "temporal_delay": bool(row.get("temporal_delay_flag", False)),
+                "three_way_match_failure": bool(row.get("three_way_match_failure", False)),
+                "maverick_buying": bool(row.get("maverick_buying", False)),
+                "temporal_delay": bool(row.get("temporal_delay", False)),
                 "duplicate_invoice": bool(row.get("duplicate_invoice", False)),
                 "unauthorized_vendor": bool(row.get("unauthorized_vendor", False)),
                 "quantity_variance": bool(row.get("quantity_variance", False)),
             }
         })
 
-    type_counts = labeled["anomaly_type"].value_counts().to_dict()
+    # Handle list-based anomaly types for counting
+    all_types = []
+    for types in labeled["anomaly_type"]:
+        try:
+            if pd.notna(types) and types is not None:
+                if isinstance(types, list):
+                    all_types.extend(types)
+                else:
+                    all_types.append(types)
+        except (ValueError, TypeError):
+            # Handle array comparison issues
+            if hasattr(types, '__len__') and len(types) > 0:
+                if isinstance(types, (list, tuple)):
+                    all_types.extend(types)
+                else:
+                    all_types.append(str(types))
+    type_counts = pd.Series(all_types).value_counts().to_dict()
     sev_counts = labeled["severity_label"].value_counts().to_dict()
     
     sev_mapped = {
-        "Critical (80-100%)": sev_counts.get("Critical", 0),
-        "High (60-79%)": sev_counts.get("High", 0),
+        "Critical (90-100%)": sev_counts.get("Critical", 0),
+        "High (60-90%)": sev_counts.get("High", 0),
         "Medium (40-59%)": sev_counts.get("Medium", 0),
         "Low (0-39%)": sev_counts.get("Low", 0),
     }

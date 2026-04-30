@@ -5,6 +5,7 @@ Logic for labeling anomaly types and calculating severity.
 import json
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -32,42 +33,128 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
         with open(os.path.join(p, "lstm_thresholds.json"), "r") as f:
             lstm_thresh = json.load(f)
 
-    # 2. Flagging based on model scores
-    # Price Mismatch (Isolation Forest)
-    results_df["price_mismatch"] = (results_df["if_score"] >= if_thresh)
+    # 2. Flagging based on business rules
     
-    # Three-Way Match Failure (Hybrid Score)
-    # The flag is already computed in merger.py using compute_hybrid_score
-    # but we ensure it's mapped to the canonical flag name
+    # Load training statistics for business rule calculations
+    p = Path(settings.MODEL_DIR)
+    category_means = json.loads((p / "category_means.json").read_text())
+    vendor_freq = json.loads((p / "vendor_freq.json").read_text())
+    
+    # Calculate training statistics
+    unit_prices = list(category_means.values())
+    unit_price_std = np.std(unit_prices)
+    vendor_frequencies = list(vendor_freq.values())
+    vendor_5th_percentile = np.percentile(vendor_frequencies, 5)
+    
+    # FLAG 1 — Price Mismatch
+    # if_score > if_threshold AND |price_deviation_from_mean_case| > 2 * std(training unit prices)
+    price_deviation_threshold = 2 * unit_price_std
+    results_df["price_mismatch"] = (
+        (results_df["if_score"] >= if_thresh) & 
+        (abs(results_df["price_deviation_from_mean_case"]) > price_deviation_threshold)
+    )
+    
+    # FLAG 2 — Three-Way Match Failure
+    # three_way_match_flag == 1 AND (has_po + has_gr + has_inv) < 3
     if "three_way_match_flag" in results_df.columns:
-        results_df["three_way_match_failure"] = results_df["three_way_match_flag"].astype(bool)
+        three_way_match_condition = results_df["three_way_match_flag"] == 1
     else:
-        results_df["three_way_match_failure"] = False
-
-    # Maverick Buying (LSTM Structural + Short Case)
-    if "maverick_buying_flag" in results_df.columns:
-        results_df["maverick_buying"] = results_df["maverick_buying_flag"].astype(bool)
+        three_way_match_condition = False
+    
+    # Document completeness check
+    if all(col in results_df.columns for col in ["has_po", "has_gr", "has_inv"]):
+        document_completeness = (results_df["has_po"] + results_df["has_gr"] + results_df["has_inv"]) < 3
     else:
-        results_df["maverick_buying"] = (results_df["lstm_structural_score"] >= lstm_thresh["structural"] * 1.5)
+        document_completeness = False
+    
+    results_df["three_way_match_failure"] = three_way_match_condition & document_completeness
 
-    # Temporal Delay (LSTM Temporal)
-    if "temporal_delay_flag" in results_df.columns:
-        results_df["temporal_delay"] = results_df["temporal_delay_flag"].astype(bool)
+    # FLAG 3 — Maverick Buying
+    # lstm_structural_score > struct_threshold AND case_length <= 40th percentile of training case lengths
+    if "lstm_structural_score" in results_df.columns:
+        structural_condition = results_df["lstm_structural_score"] > lstm_thresh["structural"]
     else:
-        results_df["temporal_delay"] = (results_df["lstm_temporal_score"] >= lstm_thresh["temporal"])
+        structural_condition = False
+    
+    # Calculate 40th percentile of case lengths from current data
+    if "case_event_count" in results_df.columns:
+        case_length_40th_percentile = np.percentile(results_df["case_event_count"], 40)
+        case_length_condition = results_df["case_event_count"] <= case_length_40th_percentile
+    else:
+        case_length_condition = False
+    
+    results_df["maverick_buying"] = structural_condition & case_length_condition
 
-    # Placeholder for other flags (simulated or rule-based)
-    if "duplicate_invoice" not in results_df.columns:
-        results_df["duplicate_invoice"] = False
-    if "unauthorized_vendor" not in results_df.columns:
-        results_df["unauthorized_vendor"] = False
-    if "quantity_variance" not in results_df.columns:
-        results_df["quantity_variance"] = False
+    # FLAG 4 — Temporal Delay
+    # lstm_temporal_score > temp_threshold AND (max_time_since_last_event_hours > 7*24 OR case_duration_hours > 90*24)
+    if "lstm_temporal_score" in results_df.columns:
+        temporal_condition = results_df["lstm_temporal_score"] > lstm_thresh["temporal"]
+    else:
+        temporal_condition = False
+    
+    # Time-based conditions
+    time_conditions = False
+    if "max_time_since_last_event_hours" in results_df.columns:
+        time_conditions = time_conditions | (results_df["max_time_since_last_event_hours"] > 7 * 24)
+    if "case_duration_hours" in results_df.columns:
+        time_conditions = time_conditions | (results_df["case_duration_hours"] > 90 * 24)
+    
+    results_df["temporal_delay"] = temporal_condition & time_conditions
+
+    # FLAG 5 — Duplicate Invoice
+    # if_score > if_threshold AND vendor_amount_pair_count_30d >= 2
+    # Note: vendor_amount_pair_count_30d not available in current features, using simplified logic
+    if "if_score" in results_df.columns:
+        duplicate_condition = results_df["if_score"] >= if_thresh
+        # Simplified: Check if same vendor appears multiple times with similar amounts
+        if "vendor" in results_df.columns and "case_amount" in results_df.columns:
+            # For now, flag as False since we don't have the 30-day window data
+            vendor_amount_condition = False
+        else:
+            vendor_amount_condition = False
+    else:
+        duplicate_condition = False
+        vendor_amount_condition = False
+    
+    results_df["duplicate_invoice"] = duplicate_condition & vendor_amount_condition
+
+    # FLAG 6 — Unauthorized Vendor
+    # if_score > if_threshold AND vendor_case_frequency < 5th percentile of training vendor frequencies
+    if "if_score" in results_df.columns:
+        unauthorized_condition = results_df["if_score"] >= if_thresh
+    else:
+        unauthorized_condition = False
+    
+    if "vendor_case_frequency" in results_df.columns:
+        vendor_frequency_condition = results_df["vendor_case_frequency"] < vendor_5th_percentile
+    else:
+        vendor_frequency_condition = False
+    
+    results_df["unauthorized_vendor"] = unauthorized_condition & vendor_frequency_condition
+
+    # FLAG 7 — Quantity Variance
+    # if_score > if_threshold AND |quantity - mean_quantity_for_category| > 2 * std_quantity_for_category
+    # Note: Need category-based quantity statistics, using simplified logic for now
+    if "if_score" in results_df.columns:
+        quantity_condition = results_df["if_score"] >= if_thresh
+    else:
+        quantity_condition = False
+    
+    # Simplified quantity variance check
+    if "case_quantity" in results_df.columns and "category_mean_unit_price_case" in results_df.columns:
+        # Using price deviation as proxy for quantity variance since category quantity stats not available
+        quantity_variance_condition = abs(results_df["price_deviation_from_mean_case"]) > price_deviation_threshold
+    else:
+        quantity_variance_condition = False
+    
+    results_df["quantity_variance"] = quantity_condition & quantity_variance_condition
 
     # 3. Primary Anomaly Type Priority
+    # Allow multiple anomaly types per case - don't override existing types
     # Three-Way Match Failure > Price Mismatch > Duplicate Invoice > 
     # Unauthorized Vendor > Maverick Buying > Temporal Delay > Quantity Variance
     
+    # Initialize anomaly_type as list to support multiple types
     results_df["anomaly_type"] = None
     
     priority_list = [
@@ -80,8 +167,31 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
         ("quantity_variance", "Quantity Variance"),
     ]
     
+    # Assign anomaly types - allow multiple types per case
     for flag_col, label in priority_list:
-        results_df.loc[(results_df[flag_col] == True) & (results_df["anomaly_type"].isna()), "anomaly_type"] = label
+        mask = results_df[flag_col] == True
+        # Add anomaly type to existing list for cases with multiple flags
+        for idx in results_df[mask].index:
+            current_types = results_df.at[idx, "anomaly_type"]
+            try:
+                if pd.isna(current_types) or current_types is None:
+                    results_df.at[idx, "anomaly_type"] = [label]
+                else:
+                    if isinstance(current_types, list):
+                        if label not in current_types:
+                            current_types.append(label)
+                            results_df.at[idx, "anomaly_type"] = current_types
+                    else:
+                        results_df.at[idx, "anomaly_type"] = [label]
+            except (ValueError, TypeError):
+                # Handle array comparison issues
+                if isinstance(current_types, (list, tuple)):
+                    if label not in current_types:
+                        current_list = list(current_types)
+                        current_list.append(label)
+                        results_df.at[idx, "anomaly_type"] = current_list
+                else:
+                    results_df.at[idx, "anomaly_type"] = [label]
 
     # 4. Severity Score
     # severity_score = 0.4 * IF_z + 0.4 * LSTM_z + 0.2 * Flags
@@ -100,10 +210,14 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
     
     results_df["severity_score"] = if_part + lstm_part + flag_part
     
-    # Labels
+    # Labels - Hardened business impact thresholds (adjusted for actual score distribution)
+    # Critical: Action required - Will heavily affect order processing
+    # High: Very high chance to affect order processing  
+    # Medium: Likely to cause delays but manageable
+    # Low: Minor issues with minimal impact
     results_df["severity_label"] = "Low"
-    results_df.loc[results_df["severity_score"] >= 0.4, "severity_label"] = "Medium"
-    results_df.loc[results_df["severity_score"] >= 0.6, "severity_label"] = "High"
-    results_df.loc[results_df["severity_score"] >= 0.8, "severity_label"] = "Critical"
+    results_df.loc[results_df["severity_score"] >= 0.80, "severity_label"] = "Medium"
+    results_df.loc[results_df["severity_score"] >= 0.90, "severity_label"] = "High"
+    results_df.loc[results_df["severity_score"] >= 0.93, "severity_label"] = "Critical"
     
     return results_df

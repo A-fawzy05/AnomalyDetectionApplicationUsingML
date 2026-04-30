@@ -91,8 +91,8 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
         "anomaly_cases": anomaly_cases,
         "anomaly_type_counts": type_counts,
         "severity_counts": {
-            "Critical (80-100%)": sev_counts["Critical"],
-            "High (60-79%)": sev_counts["High"],
+            "Critical (90-100%)": sev_counts["Critical"],
+            "High (60-90%)": sev_counts["High"],
             "Medium (40-59%)": sev_counts["Medium"],
             "Low (0-39%)": sev_counts["Low"],
         },
