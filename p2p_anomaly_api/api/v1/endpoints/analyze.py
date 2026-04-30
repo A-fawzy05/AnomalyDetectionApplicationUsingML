@@ -83,8 +83,21 @@ async def analyze_event_log(
         # 11. Fuse scores
         merged = merge_scores(X_case, if_scores, lstm_scores, phase_summary)
         
-        # 12. Apply anomaly type labels and severity
-        labeled = apply_labels(merged, df)
+        # 11.5. Calibrate thresholds for adaptive anomaly detection
+        from scoring.merger import calibrate_thresholds
+        adaptive_if_threshold, adaptive_lstm_threshold = calibrate_thresholds(
+            if_scores          = if_scores,
+            lstm_scores        = lstm_scores["lstm_case_score"].values,
+            if_train_threshold = isolation_forest.get_threshold(),
+            lstm_train_threshold = lstm_autoencoder.get_thresholds()["case"],
+            target_anomaly_rate  = 0.05,   # flag at most 5% of any batch
+        )
+        
+        # 12. Apply anomaly type labels and severity with adaptive thresholds
+        labeled = apply_labels(merged, df, 
+            if_threshold=adaptive_if_threshold,
+            lstm_threshold=adaptive_lstm_threshold
+        )
         # Clean NaN values for JSON/DB compatibility
         labeled = labeled.where(pd.notnull(labeled), None)
         
@@ -137,7 +150,10 @@ def _get_ingester(file_type: str):
 
 def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Identifies presence of P2P phases and computes missing 3-way steps.
+    Build per-case phase presence flags.
+    If a phase is absent from the ENTIRE dataset, do not count its
+    absence as a compliance failure — it may not be part of this
+    process variant.
     """
     def map_phase(activity: str) -> str:
         # Exact match first (OCEL2 activity names)
@@ -165,32 +181,52 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
         if 'payment' in a:                                                          return 'Payment Processing'
         return 'Other'
 
-    case_groups = df.groupby("case_id")["activity"].unique()
+    tmp = df.copy()
+    tmp["phase"] = tmp["activity"].apply(map_phase)
+
+    phase_sets   = tmp.groupby("case_id")["phase"].apply(
+        lambda s: set(s.dropna().astype(str))
+    )
+
+    # Detect which phases are present anywhere in this batch
+    all_phases_in_batch = set(tmp["phase"].dropna().unique())
+
+    # Only check for phases that actually exist somewhere in the batch.
+    # If Invoice Verification never appears anywhere, it is not part of
+    # this process — do not penalize its absence per case.
+    check_pr  = "Purchase Requisition"    in all_phases_in_batch
+    check_po  = "Purchase Order Creation" in all_phases_in_batch
+    check_gr  = "Goods Receipt"           in all_phases_in_batch
+    check_inv = "Invoice Verification"    in all_phases_in_batch
+    check_pay = "Payment Processing"      in all_phases_in_batch
+
     rows = []
-    for case_id, activities in case_groups.items():
-        phases = [map_phase(a) for a in activities]
-        
-        has_pr = any(p == 'Purchase Requisition' for p in phases)
-        has_po = any(p == 'Purchase Order Creation' for p in phases)
-        has_gr = any(p == 'Goods Receipt' for p in phases)
-        has_inv = any(p == 'Invoice Verification' for p in phases)
-        has_pay = any(p == 'Payment Processing' for p in phases)
-        
-        # 3-way match: PO, GR, INV
-        missing_3way = 0
-        if not has_po: missing_3way += 1
-        if not has_gr: missing_3way += 1
-        if not has_inv: missing_3way += 1
-        
+    for case_id, phases in phase_sets.items():
+        has_pr  = int("Purchase Requisition"    in phases)
+        has_po  = int("Purchase Order Creation" in phases)
+        has_gr  = int("Goods Receipt"           in phases)
+        has_inv  = int("Invoice Verification"    in phases)
+        has_pay  = int("Payment Processing"      in phases)
+
+        # Only count missing steps for phases that exist in this batch.
+        # A phase absent from the entire dataset is not a compliance failure
+        missing = 0
+        if check_pr  and not has_pr:  missing += 1
+        if check_po  and not has_po:  missing += 1
+        if check_gr  and not has_gr:  missing += 1
+        if check_inv and not has_inv:  missing += 1
+
         rows.append({
-            "case_id": case_id,
-            "has_pr": int(has_pr),
-            "has_po": int(has_po),
-            "has_gr": int(has_gr),
-            "has_inv": int(has_inv),
-            "has_pay": int(has_pay),
-            "missing_3way_steps": missing_3way
+            "case_id":          case_id,
+            "has_pr":           has_pr,
+            "has_po":           has_po,
+            "has_gr":           has_gr,
+            "has_inv":           has_inv,
+            "has_pay":           has_pay,
+            "unique_phases":      len(phases),
+            "missing_3way_steps": missing,
         })
+
     return pd.DataFrame(rows)
 
 

@@ -76,8 +76,36 @@ class OCEL2Ingester(BaseIngester):
                 if mat_ids:
                     po_materials[obj_id] = mat_ids
 
-        # ── Step 3: Flatten events ────────────────────────────────────────────
+        # ── Step 3: Build PO → related objects map (SIMPLIFIED) ─────────────
+        # Build reverse lookup: which PO does each object belong to?
+        object_to_po = {}
+        for obj_id, obj in obj_lookup.items():
+            if obj.get('type') == 'purchase_order':
+                # PO belongs to itself
+                object_to_po[obj_id] = obj_id
+                # Materials belong to this PO
+                mat_ids = po_materials.get(obj_id, [])
+                for mat_id in mat_ids:
+                    object_to_po[mat_id] = obj_id
+
+        # Also map invoice/goods receipt/payment objects to POs via event relationships
         events_raw = data.get('events', [])
+        for event in events_raw:
+            rels = event.get('relationships', [])
+            rel_ids = {r.get('qualifier','').lower().replace(' ','_'): r.get('objectId')
+                       for r in rels}
+
+            po_id = rel_ids.get('purchase_order')
+            inv_id = rel_ids.get('invoice_receipt')
+            gr_id  = rel_ids.get('goods_receipt')
+            pay_id = rel_ids.get('payment')
+
+            if po_id:
+                for linked_id in [inv_id, gr_id, pay_id]:
+                    if linked_id:
+                        object_to_po[linked_id] = po_id
+
+        # ── Step 4: Flatten events ────────────────────────────────────────────
         rows = []
         warned_no_po = 0
 
@@ -100,61 +128,16 @@ class OCEL2Ingester(BaseIngester):
                 q = rel.get('qualifier', '').lower().replace(' ', '_')
                 rel_by_qualifier[q] = rel.get('objectId', '')
 
-            # Determine case_id: prefer purchase_order, then group by shared attributes
+            # Determine case_id: prefer purchase_order, then find via object map
             case_id = rel_by_qualifier.get('purchase_order')
             
-            # If no direct PO relationship, try to find related PO through shared attributes
             if not case_id:
-                # Strategy 1: For events linked to quotation, find PO with matching vendor/amount
-                quot_id = rel_by_qualifier.get('quotation')
-                if quot_id and quot_id in obj_lookup:
-                    quot_obj = obj_lookup[quot_id]
-                    quot_vendor = quot_obj.get('Vendor (EBAN-LIFNR)', '')
-                    quot_amount = self._to_float(quot_obj.get('Amount (DMBTR)', 0))
-                    
-                    # Find PO with matching vendor and amount
-                    for obj_id, obj in obj_lookup.items():
-                        if obj.get('type') == 'purchase_order':
-                            po_vendor = obj.get('Vendor (EKKO-LIFNR)', '')
-                            # Get PO amount from materials
-                            mat_ids = [
-                                rel['objectId']
-                                for rel in obj.get('_relationships', [])
-                                if 'materials of purchase order' in rel.get('qualifier', '').lower()
-                            ]
-                            po_amount = 0.0
-                            if mat_ids:
-                                for mat_id in mat_ids:
-                                    if mat_id in obj_lookup:
-                                        mat_obj = obj_lookup[mat_id]
-                                        mat_amount = self._to_float(mat_obj.get('Amount (DMBTR)', 0))
-                                        if mat_amount == 0:
-                                            price = self._to_float(mat_obj.get('Net Price (EKPO-NETPR)', 0))
-                                            qty = self._to_float(mat_obj.get('Quantity (EKPO-MENGE)', 0))
-                                            mat_amount = price * qty if qty > 0 else price
-                                        po_amount = mat_amount
-                                        break
-                            
-                            # Match by vendor and amount (allow some tolerance)
-                            if (quot_vendor == po_vendor and 
-                                abs(quot_amount - po_amount) < 1000):  # Allow $1000 tolerance
-                                case_id = obj_id
-                                break
-                
-                # Strategy 2: For events linked to PR, find PO with matching vendor
-                if not case_id:
-                    pr_id = rel_by_qualifier.get('purchase_requisition')
-                    if pr_id and pr_id in obj_lookup:
-                        pr_obj = obj_lookup[pr_id]
-                        pr_vendor = pr_obj.get('Vendor (EBAN-LIFNR)', '')
-                        
-                        # Find PO with matching vendor
-                        for obj_id, obj in obj_lookup.items():
-                            if obj.get('type') == 'purchase_order':
-                                po_vendor = obj.get('Vendor (EKKO-LIFNR)', '')
-                                if pr_vendor == po_vendor:
-                                    case_id = obj_id
-                                    break
+                # Check if any linked object maps back to a PO
+                for rel in rels:
+                    linked_id = rel.get('objectId', '')
+                    if linked_id in object_to_po:
+                        case_id = object_to_po[linked_id]
+                        break
             
             # Final fallback - skip events that can't be properly grouped
             if not case_id:

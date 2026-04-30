@@ -15,23 +15,35 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.DataFrame:
+def apply_labels(
+    results_df: pd.DataFrame, 
+    raw_df: pd.DataFrame = None,
+    if_threshold: float | None = None,
+    lstm_threshold: float | None = None,
+) -> pd.DataFrame:
     """
-    Applies deterministic rules to label anomalies and calculate severity.
-    Uses thresholds from artifacts.
+    Apply anomaly type flags and severity scores.
+    If if_threshold / lstm_threshold are provided, use them instead of
+    stored artifact thresholds. This enables per-batch calibration.
     """
-    # 1. Load thresholds from artifacts
+    # 1. Load thresholds from artifacts or use provided overrides
     p = os.path.join(settings.MODEL_DIR)
     
-    if_thresh = 0.0
-    if os.path.exists(os.path.join(p, "if_threshold.json")):
-        with open(os.path.join(p, "if_threshold.json"), "r") as f:
-            if_thresh = json.load(f)["threshold"]
+    if if_threshold is not None:
+        if_thresh = if_threshold
+    else:
+        if_thresh = 0.0
+        if os.path.exists(os.path.join(p, "if_threshold.json")):
+            with open(os.path.join(p, "if_threshold.json"), "r") as f:
+                if_thresh = json.load(f)["threshold"]
             
-    lstm_thresh = {"case": 0.5, "structural": 0.5, "temporal": 0.5}
-    if os.path.exists(os.path.join(p, "lstm_thresholds.json")):
-        with open(os.path.join(p, "lstm_thresholds.json"), "r") as f:
-            lstm_thresh = json.load(f)
+    if lstm_threshold is not None:
+        lstm_thresh = {"case": lstm_threshold, "structural": 0.5, "temporal": 0.5}
+    else:
+        lstm_thresh = {"case": 0.5, "structural": 0.5, "temporal": 0.5}
+        if os.path.exists(os.path.join(p, "lstm_thresholds.json")):
+            with open(os.path.join(p, "lstm_thresholds.json"), "r") as f:
+                lstm_thresh = json.load(f)
 
     # 2. Flagging based on business rules
     
@@ -54,8 +66,10 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
         (abs(results_df["price_deviation_from_mean_case"]) > price_deviation_threshold)
     )
     
-    # FLAG 2 — Three-Way Match Failure
-    # three_way_match_flag == 1 AND (has_po + has_gr + has_inv) < 3
+    # FLAG 2 — Three-Way Match Failure (UPDATED)
+    # Requires BOTH model signal AND actual missing steps
+    # If missing_3way_steps == 0 for a case, it means dataset does not
+    # include invoice steps — not that every case has a compliance failure.
     if "three_way_match_flag" in results_df.columns:
         three_way_match_condition = results_df["three_way_match_flag"] == 1
     else:
@@ -67,7 +81,17 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
     else:
         document_completeness = False
     
-    results_df["three_way_match_failure"] = three_way_match_condition & document_completeness
+    # Only apply three-way match flag if Invoice Verification exists
+    # somewhere in the dataset. If the entire dataset has no invoice
+    # events linked to PO cases, the flag should never fire.
+    batch_has_invoice = (results_df.get("has_inv", pd.Series(0)) == 1).any()
+
+    results_df["three_way_match_failure"] = (
+        three_way_match_condition & 
+        document_completeness &
+        (results_df["missing_3way_steps"] >= 1) &
+        batch_has_invoice   # never fire if dataset has no invoice phase
+    ).astype("int8")
 
     # FLAG 3 — Maverick Buying
     # lstm_structural_score > struct_threshold AND case_length <= 40th percentile of training case lengths
@@ -118,8 +142,9 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
     
     results_df["duplicate_invoice"] = duplicate_condition & vendor_amount_condition
 
-    # FLAG 6 — Unauthorized Vendor
+    # FLAG 6 — Unauthorized Vendor (UPDATED — uses vendor_batch_frequency)
     # if_score > if_threshold AND vendor_case_frequency < 5th percentile of training vendor frequencies
+    # AND vendor_batch_frequency <= 3 (rare in this batch too)
     if "if_score" in results_df.columns:
         unauthorized_condition = results_df["if_score"] >= if_thresh
     else:
@@ -130,7 +155,17 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
     else:
         vendor_frequency_condition = False
     
-    results_df["unauthorized_vendor"] = unauthorized_condition & vendor_frequency_condition
+    # Add vendor_batch_frequency condition to prevent flagging all unknown vendors
+    if "vendor_batch_frequency" in results_df.columns:
+        batch_frequency_condition = results_df["vendor_batch_frequency"] <= 3
+    else:
+        batch_frequency_condition = True  # Fallback to original behavior if column missing
+    
+    results_df["unauthorized_vendor"] = (
+        unauthorized_condition & 
+        vendor_frequency_condition & 
+        batch_frequency_condition
+    )
 
     # FLAG 7 — Quantity Variance
     # if_score > if_threshold AND |quantity - mean_quantity_for_category| > 2 * std_quantity_for_category
@@ -193,31 +228,47 @@ def apply_labels(results_df: pd.DataFrame, raw_df: pd.DataFrame = None) -> pd.Da
                 else:
                     results_df.at[idx, "anomaly_type"] = [label]
 
-    # 4. Severity Score
-    # severity_score = 0.4 * IF_z + 0.4 * LSTM_z + 0.2 * Flags
-    # We use z-scores if available for better resolution
-    if_part = np.clip(results_df.get("if_score_z", results_df["if_score"]), 0, 2) / 2.0 * 0.4
-    
-    # LSTM part
-    lstm_score = results_df.get("hybrid_3way_score", results_df["lstm_case_score"])
-    lstm_part = np.clip(lstm_score, 0, 1) * 0.4
-    
-    # Flag part
-    n_flags = results_df[["price_mismatch", "three_way_match_failure", "maverick_buying", 
-                          "temporal_delay", "duplicate_invoice", "unauthorized_vendor", 
-                          "quantity_variance"]].sum(axis=1)
-    flag_part = np.clip(n_flags / 3.0, 0, 1) * 0.2
-    
-    results_df["severity_score"] = if_part + lstm_part + flag_part
-    
-    # Labels - Hardened business impact thresholds (adjusted for actual score distribution)
-    # Critical: Action required - Will heavily affect order processing
-    # High: Very high chance to affect order processing  
-    # Medium: Likely to cause delays but manageable
-    # Low: Minor issues with minimal impact
-    results_df["severity_label"] = "Low"
-    results_df.loc[results_df["severity_score"] >= 0.80, "severity_label"] = "Medium"
-    results_df.loc[results_df["severity_score"] >= 0.90, "severity_label"] = "High"
-    results_df.loc[results_df["severity_score"] >= 0.93, "severity_label"] = "Critical"
+    # 4. Severity Score (UPDATED - uses score ranking for better distribution)
+    # Component 1: IF score rank among ALL cases (0 to 1)
+    # Using rank instead of absolute score gives meaningful spread
+    # even when adaptive threshold compresses the score range
+    results_df["if_score_rank"] = results_df["if_score"].rank(pct=True)
+
+    # Component 2: LSTM score rank among ALL cases (0 to 1)
+    results_df["lstm_score_rank"] = results_df["lstm_case_score"].rank(pct=True)
+
+    # Component 3: flag count bonus (0 to 1)
+    results_df["n_flags"] = (
+        results_df["price_mismatch"].fillna(0) +
+        results_df["three_way_match_failure"].fillna(0) +
+        results_df["maverick_buying"].fillna(0) +
+        results_df["temporal_delay"].fillna(0) +
+        results_df["duplicate_invoice"].fillna(0) +
+        results_df["unauthorized_vendor"].fillna(0) +
+        results_df["quantity_variance"].fillna(0)
+    )
+    results_df["flag_bonus"] = (results_df["n_flags"] / 3.0).clip(upper=1.0)
+
+    # Severity = weighted combination of ranks + flag bonus
+    results_df["severity_score"] = (
+        0.40 * results_df["if_score_rank"] +
+        0.40 * results_df["lstm_score_rank"] +
+        0.20 * results_df["flag_bonus"]
+    ).clip(0.0, 1.0)
+
+    # Severity labels - recalibrated for rank-based scoring
+    # With rank-based scoring:
+    #   flagged cases score ~0.60–0.70 (top 30–40% of all cases)
+    #   the most anomalous score ~0.95–1.00
+    # Bands:
+    #   Low:      score < 0.55  (below 55th pct — normal cases with no flags)
+    #   Medium:   0.55–0.70     (flagged cases with moderate model scores)
+    #   High:     0.70–0.85     (flagged cases with strong model scores)
+    #   Critical: > 0.85        (top 15% of flagged cases)
+    results_df["severity_label"] = pd.cut(
+        results_df["severity_score"],
+        bins=[-0.001, 0.55, 0.70, 0.85, 1.001],
+        labels=["Low", "Medium", "High", "Critical"]
+    )
     
     return results_df

@@ -172,8 +172,13 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         case_agg["vendor_case_frequency"] = (
             case_agg["vendor"].astype(str).map(vendor_freq).fillna(0)
         )
+        # Add vendor_batch_frequency for unauthorized vendor flag calibration
+        # This helps prevent flagging all unknown vendors as unauthorized
+        vendor_batch_freq = case_agg.groupby('vendor').size()
+        case_agg['vendor_batch_frequency'] = vendor_batch_freq.fillna(1)
     else:
         case_agg["vendor_case_frequency"] = 0
+        case_agg['vendor_batch_frequency'] = 1
 
     if "resource" in case_agg.columns:
         case_agg["user_case_frequency"] = (
@@ -239,11 +244,13 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         case_agg = case_agg.drop(columns=columns_to_drop)
     
     # Reindex to match training columns exactly ───────────────────────────────
-    # This is the line that fixes the 13 vs 2117 mismatch at inference time.
+    # This is line that fixes the 13 vs 2117 mismatch at inference time.
     # Missing columns (unseen categories) are filled with 0.
     # Extra columns (not in training) are dropped.
     before = case_agg.shape[1]
     
+    # Only add vendor_batch_frequency if it was in original train_columns
+    # Otherwise keep original count to avoid mismatch
     case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
     after = case_agg.shape[1]
     

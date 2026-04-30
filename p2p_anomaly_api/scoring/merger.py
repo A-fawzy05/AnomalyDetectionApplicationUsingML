@@ -12,6 +12,43 @@ from models import lstm_autoencoder as lstm_model
 logger = logging.getLogger(__name__)
 
 
+def calibrate_thresholds(
+    if_scores: np.ndarray,
+    lstm_scores: np.ndarray,
+    if_train_threshold: float,
+    lstm_train_threshold: float,
+    target_anomaly_rate: float = 0.05,
+) -> tuple[float, float]:
+    """
+    Compute batch-adaptive thresholds.
+
+    Logic:
+    - Compute threshold that would flag exactly target_anomaly_rate
+      of CURRENT batch as anomalous.
+    - Take the MAX of (training threshold, batch threshold).
+      This means: never flag more than training would flag on similar data,
+      but also never flag less than target_anomaly_rate of any batch.
+    - target_anomaly_rate=0.05 means at most 5% of any batch is anomalous.
+
+    Returns:
+        (adaptive_if_threshold, adaptive_lstm_threshold)
+    """
+    # Batch-specific percentile threshold
+    batch_if_threshold   = float(np.quantile(if_scores,    1.0 - target_anomaly_rate))
+    batch_lstm_threshold = float(np.quantile(lstm_scores,  1.0 - target_anomaly_rate))
+
+    # Take more conservative (higher) threshold
+    adaptive_if   = max(if_train_threshold,   batch_if_threshold)
+    adaptive_lstm = max(lstm_train_threshold, batch_lstm_threshold)
+
+    logger.info(
+        f"Threshold calibration: "
+        f"IF train={if_train_threshold:.4f} batch={batch_if_threshold:.4f} → adaptive={adaptive_if:.4f} | "
+        f"LSTM train={lstm_train_threshold:.4f} batch={batch_lstm_threshold:.4f} → adaptive={adaptive_lstm:.4f}"
+    )
+    return adaptive_if, adaptive_lstm
+
+
 def merge_scores(
     case_df: pd.DataFrame,
     if_scores: np.ndarray,
