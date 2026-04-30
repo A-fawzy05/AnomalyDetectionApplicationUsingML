@@ -238,7 +238,7 @@ def _prepare_case_rows(results_df: pd.DataFrame) -> list:
     for _, row in results_df.iterrows():
         case_row = {
             "case_id": str(row["case_id"]),
-            "supplier": row.get("vendor"),
+            "supplier": row.get("supplier"),
             "amount": float(row.get("case_amount", 0.0)),
             "anomaly_type": row.get("anomaly_type"),
             "severity_score": float(row.get("severity_score", 0.0)),
@@ -270,7 +270,7 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
     for _, row in anomalies.iterrows():
         anomaly_cases.append({
             "case_id": str(row["case_id"]),
-            "supplier": row.get("vendor"),
+            "supplier": row.get("supplier"),
             "amount": float(row.get("case_amount", 0.0)),
             "anomaly_type": row.get("anomaly_type"),
             "severity_score": float(row.get("severity_score", 0.0)),

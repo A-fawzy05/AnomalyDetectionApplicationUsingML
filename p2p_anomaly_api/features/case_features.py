@@ -218,10 +218,16 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     vendor_data = None
     amount_data = None
     
+    # Check both 'vendor' and 'case:Vendor' columns
     if "vendor" in case_agg.columns:
         vendor_data = case_agg["vendor"].copy()
+    elif "case:Vendor" in case_agg.columns:
+        vendor_data = case_agg["case:Vendor"].copy()
+    
     if "amount" in case_agg.columns:
         amount_data = case_agg["amount"].copy()
+    elif "case:Amount" in case_agg.columns:
+        amount_data = case_agg["case:Amount"].copy()
         
     # Remove vendor and amount columns before reindex to avoid sklearn scaler error
     columns_to_drop = []
@@ -237,15 +243,18 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     # Missing columns (unseen categories) are filled with 0.
     # Extra columns (not in training) are dropped.
     before = case_agg.shape[1]
+    
     case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
     after = case_agg.shape[1]
     
     # Store vendor and amount data in separate attributes for the merger to access
     # This avoids sklearn scaler issues while preserving data for API response
+    # Store AFTER reindex to prevent attribute loss
     if vendor_data is not None:
-        case_agg.attrs['_vendor_data'] = vendor_data
+        # Store as a regular attribute instead of attrs
+        case_agg._vendor_data = vendor_data
     if amount_data is not None:
-        case_agg.attrs['_amount_data'] = amount_data
+        case_agg._amount_data = amount_data
 
     logger.info(
         f"case_features: {before} cols before reindex → "

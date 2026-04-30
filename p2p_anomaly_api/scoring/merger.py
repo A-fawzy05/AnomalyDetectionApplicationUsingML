@@ -37,7 +37,7 @@ def merge_scores(
         # Create a fresh DataFrame with case_id as a column, preserving all original columns
         result = case_df.reset_index(drop=False)
     
-    # Add vendor and amount data from case_df attributes if available
+    # Restore vendor and amount data from case_df attributes if available
     if hasattr(case_df, '_vendor_data') and case_df._vendor_data is not None:
         result["vendor"] = case_df._vendor_data
     if hasattr(case_df, '_amount_data') and case_df._amount_data is not None:
