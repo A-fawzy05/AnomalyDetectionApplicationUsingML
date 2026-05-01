@@ -271,4 +271,9 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         f"Feature count mismatch: got {after}, expected {len(train_columns)}"
     )
 
+    # Cast all float64 columns to float32 — halves memory usage
+    # IsolationForest and StandardScaler both accept float32
+    float_cols = case_agg.select_dtypes(include='float64').columns
+    case_agg[float_cols] = case_agg[float_cols].astype(np.float32)
+
     return case_agg

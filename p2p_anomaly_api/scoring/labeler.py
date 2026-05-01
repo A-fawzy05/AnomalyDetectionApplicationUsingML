@@ -228,47 +228,53 @@ def apply_labels(
                 else:
                     results_df.at[idx, "anomaly_type"] = [label]
 
-    # 4. Severity Score (UPDATED - uses score ranking for better distribution)
-    # Component 1: IF score rank among ALL cases (0 to 1)
-    # Using rank instead of absolute score gives meaningful spread
-    # even when adaptive threshold compresses the score range
-    results_df["if_score_rank"] = results_df["if_score"].rank(pct=True)
-
-    # Component 2: LSTM score rank among ALL cases (0 to 1)
-    results_df["lstm_score_rank"] = results_df["lstm_case_score"].rank(pct=True)
-
-    # Component 3: flag count bonus (0 to 1)
+    # 4. Severity Score (UPDATED - guarantees Critical cases appear when anomalies exist)
     results_df["n_flags"] = (
-        results_df["price_mismatch"].fillna(0) +
-        results_df["three_way_match_failure"].fillna(0) +
-        results_df["maverick_buying"].fillna(0) +
-        results_df["temporal_delay"].fillna(0) +
-        results_df["duplicate_invoice"].fillna(0) +
-        results_df["unauthorized_vendor"].fillna(0) +
-        results_df["quantity_variance"].fillna(0)
+        results_df[["price_mismatch", "three_way_match_failure", "maverick_buying",
+            "temporal_delay", "duplicate_invoice", "unauthorized_vendor",
+            "quantity_variance"]]
+        .fillna(0).sum(axis=1)
     )
-    results_df["flag_bonus"] = (results_df["n_flags"] / 3.0).clip(upper=1.0)
 
-    # Severity = weighted combination of ranks + flag bonus
-    results_df["severity_score"] = (
-        0.40 * results_df["if_score_rank"] +
-        0.40 * results_df["lstm_score_rank"] +
-        0.20 * results_df["flag_bonus"]
+    is_flagged = results_df["n_flags"] > 0
+
+    # Global percentile ranks
+    results_df["if_rank"]   = results_df["if_score"].rank(pct=True)
+    results_df["lstm_rank"] = results_df["lstm_case_score"].rank(pct=True)
+    results_df["flag_bonus"]= (results_df["n_flags"] / 3.0).clip(upper=1.0)
+
+    raw_score = (
+        0.4 * results_df["if_rank"] +
+        0.4 * results_df["lstm_rank"] +
+        0.2 * results_df["flag_bonus"]
     ).clip(0.0, 1.0)
 
-    # Severity labels - recalibrated for rank-based scoring
-    # With rank-based scoring:
-    #   flagged cases score ~0.60–0.70 (top 30–40% of all cases)
-    #   the most anomalous score ~0.95–1.00
-    # Bands:
-    #   Low:      score < 0.55  (below 55th pct — normal cases with no flags)
-    #   Medium:   0.55–0.70     (flagged cases with moderate model scores)
-    #   High:     0.70–0.85     (flagged cases with strong model scores)
-    #   Critical: > 0.85        (top 15% of flagged cases)
+    results_df["severity_score"] = raw_score.copy()
+
+    # Flagged cases: re-rank within flagged subset → always 0.55–1.0
+    # This guarantees Critical cases appear (top 25% of flagged)
+    if is_flagged.sum() > 1:
+        flagged_idx = results_df.index[is_flagged]
+        inner_rank  = raw_score[flagged_idx].rank(pct=True)
+        # Map inner rank 0–1 → severity 0.55–1.0
+        results_df.loc[flagged_idx, "severity_score"] = (
+            0.55 + inner_rank * 0.45
+        ).clip(0.55, 1.0)
+
+    # Non-flagged cases capped at 0.54 (always Low or Medium)
+    results_df.loc[~is_flagged, "severity_score"] = (
+        raw_score[~is_flagged].clip(0.0, 0.54)
+    )
+
+    # Bands — guarantees distribution across all four levels
+    # Critical: top 25% of flagged (inner_rank > 0.75 → score > 0.89)
+    # High:     next 25% (inner_rank 0.50–0.75 → score 0.77–0.89)
+    # Medium:   bottom 50% of flagged + high non-flagged
+    # Low:      normal cases
     results_df["severity_label"] = pd.cut(
         results_df["severity_score"],
-        bins=[-0.001, 0.55, 0.70, 0.85, 1.001],
+        bins=[-0.001, 0.40, 0.70, 0.89, 1.001],
         labels=["Low", "Medium", "High", "Critical"]
     )
-    
+
     return results_df

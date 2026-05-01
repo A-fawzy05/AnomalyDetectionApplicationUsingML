@@ -59,6 +59,24 @@ async def analyze_event_log(
         ingester = _get_ingester(detected_type)
         df = ingester.ingest(file.file)
         
+        n_cases = df['case_id'].nunique()
+        n_events = len(df)
+
+        if n_cases > 10_000:
+            raise IngestionError(
+                f'Ingestion produced {n_cases} cases from {n_events} events. '
+                f'This indicates a relationship resolution failure — '
+                f'check that your file has purchase_order objects and '
+                f'events with purchase_order qualifier in relationships.'
+            )
+
+        if n_events / max(n_cases, 1) < 2:
+            logger.warning(
+                f'Low events-per-case ratio: {n_events}/{n_cases} = '
+                f'{n_events/n_cases:.1f}. Expected > 4. '
+                f'Orphan events may have been created.'
+            )
+        
         # 5. Persist raw events to DB
         await event_log_repository.bulk_insert_events(db, run_id, df)
         
@@ -426,9 +444,10 @@ def _format_anomaly_type(anomaly_type):
 def _prepare_case_rows(results_df: pd.DataFrame) -> list:
     rows = []
     for _, row in results_df.iterrows():
+        supplier_val = row.get("supplier") if pd.notna(row.get("supplier")) else row.get("vendor")
         case_row = {
             "case_id": str(row["case_id"]),
-            "supplier": row.get("vendor"),
+            "supplier": str(supplier_val) if pd.notna(supplier_val) else None,
             "amount": float(row.get("case_amount", 0.0)),
             "anomaly_type": _format_anomaly_type(row.get("anomaly_type")),
             "severity_score": float(row.get("severity_score", 0.0)),
@@ -458,9 +477,10 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
     
     anomaly_cases = []
     for _, row in anomalies.iterrows():
+        supplier_val = row.get("supplier") if pd.notna(row.get("supplier")) else row.get("vendor")
         anomaly_cases.append({
             "case_id": str(row["case_id"]),
-            "supplier": row.get("vendor"),
+            "supplier": str(supplier_val) if pd.notna(supplier_val) else None,
             "amount": float(row.get("case_amount", 0.0)),
             "anomaly_type": _format_anomaly_type(row.get("anomaly_type")),
             "severity_score": float(row.get("severity_score", 0.0)),
@@ -523,4 +543,30 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
         "severity_counts": sev_mapped,
         "process_flow_map": flow_map,
         "real_time_feed": real_time_feed
+    }
+
+
+@router.get("/debug/ocel2-qualifiers")
+async def debug_qualifiers(file: UploadFile):
+    import json
+    data    = json.load(file.file)
+    events  = data.get('events', [])[:100]
+    quals   = {}
+    for ev in events:
+        for r in ev.get('relationships', []):
+            q = r.get('qualifier', '')
+            quals[q] = quals.get(q, 0) + 1
+    po_events = sum(
+        1 for ev in events
+        if any(r.get('qualifier','').lower() == 'purchase_order'
+               for r in ev.get('relationships', []))
+    )
+    return {
+        "qualifier_counts": quals,
+        "events_with_po_link": po_events,
+        "total_events_sampled": len(events),
+        "expected_case_count": sum(
+            1 for o in data.get('objects', [])
+            if o.get('type') == 'purchase_order'
+        )
     }

@@ -58,7 +58,8 @@ def predict(X: pd.DataFrame) -> np.ndarray:
     Score > threshold means the case is flagged as anomalous.
     """
     _load()
-    X_scaled = _scaler.transform(X)           # (n, 2117)
+    X_arr    = X.values.astype(np.float32)     # explicit float32
+    X_scaled = _scaler.transform(X_arr)           # (n, 2117)
     X_vt     = _var_selector.transform(X_scaled)  # (n, 1827)
     scores   = -_model.decision_function(X_vt)    # (n,)  positive = anomalous
     return scores

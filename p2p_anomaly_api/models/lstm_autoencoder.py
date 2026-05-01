@@ -151,6 +151,8 @@ def build_sequences(
     return padded, case_ids, lengths
 
 
+INFERENCE_BATCH_SIZE = 256   # process 256 cases at a time
+
 def score_sequences(
     X_seq: np.ndarray,
     lengths: list,
@@ -161,7 +163,15 @@ def score_sequences(
     Returns DataFrame with one row per case.
     """
     _load()
-    preds = _model.predict(X_seq, verbose=0)
+    all_preds = []
+    n = len(case_ids)
+
+    for start in range(0, n, INFERENCE_BATCH_SIZE):
+        end   = min(start + INFERENCE_BATCH_SIZE, n)
+        chunk = X_seq[start:end]
+        all_preds.append(_model.predict(chunk, verbose=0))
+
+    preds = np.concatenate(all_preds, axis=0)
     rows  = []
 
     for i, case_id in enumerate(case_ids):
