@@ -250,81 +250,72 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
     """
-    Computes anomaly rates per process phase based on actual process flow completion.
-    Shows how cases flow through the P2P process with realistic decreasing numbers.
+    Computes anomaly rates per process phase based on actual activities performed per case.
     """
-    # Define the standard P2P process flow order
+    # Activity → canonical phase name used in the process_flow list
+    ACTIVITY_TO_PHASE = {
+        'Create Request for Quotation':             'Create Request for Quotation',
+        'Create Purchase Requisition':              'Create Request for Quotation',
+        'Approve Purchase Requisition':             'Create Request for Quotation',
+        'Delegate Purchase Requisition Approval':   'Create Request for Quotation',
+        'Create Purchase Order':                    'Create Purchase Order',
+        'Approve Purchase Order':                   'Approve Purchase Order',
+        'Create Goods Receipt':                     'Create Goods Receipt',
+        'Create Invoice Receipt':                   'Create Goods Receipt',
+        'Perform Two-Way Match':                    'Create Goods Receipt',
+        'Execute Payment':                          'Execute Payment',
+    }
+
     process_flow = [
-        "Create Request for Quotation",
-        "Create Purchase Order", 
-        "Approve Purchase Order",
-        "Create Goods Receipt",
-        "Execute Payment"
+        'Create Request for Quotation',
+        'Create Purchase Order',
+        'Approve Purchase Order',
+        'Create Goods Receipt',
+        'Execute Payment',
     ]
-    
+
+    # Per-case set of canonical phases *actually performed*
+    tmp = df.copy()
+    tmp['_phase'] = tmp['activity'].map(ACTIVITY_TO_PHASE)
+    case_phases = (
+        tmp.dropna(subset=['_phase'])
+           .groupby('case_id')['_phase']
+           .apply(set)
+    )
+
+    # Build per-phase case_id sets from the mapping
+    phase_to_cases: dict[str, set] = {p: set() for p in process_flow}
+    for case_id, phases in case_phases.items():
+        for p in phases:
+            if p in phase_to_cases:
+                phase_to_cases[p].add(case_id)
+
+    # Anomalous case_id set
+    anomalous_ids = set(results_df.loc[results_df['anomaly_type'].notna(), 'case_id'])
+
     flow_map = []
-    
-    # Build case activity matrix to understand process flow
-    case_activities = {}
-    for case_id in df['case_id'].unique():
-        activities = df[df['case_id'] == case_id]['activity'].unique()
-        case_activities[case_id] = set(activities)
-    
-    # Calculate realistic process flow by tracking case progression
-    for i, phase in enumerate(process_flow):
-        if phase not in df["activity"].values:
+    cumulative = None   # tracks cases that reached each previous phase (funnel)
+    for phase in process_flow:
+        phase_case_ids = phase_to_cases.get(phase, set())
+        if not phase_case_ids:
             continue
-            
-        # Cases that have this specific activity
-        phase_cases = set(df[df["activity"] == phase]["case_id"].unique())
-        
-        # For process flow, we want to show realistic progression:
-        # RFQ: Only cases that actually use RFQ (optional)
-        # PO: All cases that create PO (main starting point)
-        # Approval: Cases that have both PO AND approval
-        # GR: Cases that have PO, approval, AND GR
-        # Payment: Cases that have PO, approval, GR, AND payment
-        
-        if phase == "Create Request for Quotation":
-            # RFQ is optional - only count cases that actually use it
-            total_in_phase = len(phase_cases)
-        elif phase == "Create Purchase Order":
-            # PO is the main entry point - count all PO cases
-            total_in_phase = len(phase_cases)
-        elif phase == "Approve Purchase Order":
-            # Only count cases that have both PO AND approval
-            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
-            approval_cases = phase_cases
-            total_in_phase = len(po_cases.intersection(approval_cases))
-        elif phase == "Create Goods Receipt":
-            # Only count cases that have PO, approval, AND GR
-            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
-            approval_cases = set(df[df["activity"] == "Approve Purchase Order"]["case_id"].unique())
-            gr_cases = phase_cases
-            total_in_phase = len(po_cases.intersection(approval_cases).intersection(gr_cases))
-        elif phase == "Execute Payment":
-            # Only count cases that have complete PO -> approval -> GR -> payment flow
-            po_cases = set(df[df["activity"] == "Create Purchase Order"]["case_id"].unique())
-            approval_cases = set(df[df["activity"] == "Approve Purchase Order"]["case_id"].unique())
-            gr_cases = set(df[df["activity"] == "Create Goods Receipt"]["case_id"].unique())
-            payment_cases = phase_cases
-            total_in_phase = len(po_cases.intersection(approval_cases).intersection(gr_cases).intersection(payment_cases))
+
+        # Funnel: each phase = cases that did THIS phase AND all prior phases
+        if cumulative is None:
+            cumulative = phase_case_ids
         else:
-            total_in_phase = len(phase_cases)
-        
-        # Count anomalies for cases that reached this phase
-        anomalies_in_phase = len(results_df[
-            (results_df["case_id"].isin(phase_cases)) & 
-            (results_df["anomaly_type"].notna())
-        ])
-        
+            cumulative = cumulative & phase_case_ids
+
+        total_in_phase  = len(cumulative)
+        anomalies_in_phase = len(cumulative & anomalous_ids)
+
         flow_map.append({
-            "phase": phase,
-            "total_cases": total_in_phase,
-            "anomalies": anomalies_in_phase,
-            "anomaly_rate": anomalies_in_phase / total_in_phase if total_in_phase > 0 else 0
+            'phase':        phase,
+            'total_cases':  total_in_phase,
+            'anomalies':    anomalies_in_phase,
+            'anomaly_rate': anomalies_in_phase / total_in_phase if total_in_phase > 0 else 0,
         })
-    
+
     return flow_map
 
 

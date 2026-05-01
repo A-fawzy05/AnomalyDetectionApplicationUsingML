@@ -172,13 +172,16 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         case_agg["vendor_case_frequency"] = (
             case_agg["vendor"].astype(str).map(vendor_freq).fillna(0)
         )
-        # Add vendor_batch_frequency for unauthorized vendor flag calibration
-        # This helps prevent flagging all unknown vendors as unauthorized
-        vendor_batch_freq = case_agg.groupby('vendor').size()
-        case_agg['vendor_batch_frequency'] = vendor_batch_freq.fillna(1)
+        # vendor_batch_frequency: how many cases share the same vendor in THIS batch.
+        # Must use .map() — groupby().size() returns a vendor-indexed Series which
+        # mis-aligns against the case_id index and produces all-NaN.
+        vendor_batch_count = case_agg["vendor"].astype(str).map(
+            case_agg["vendor"].astype(str).value_counts()
+        )
+        case_agg["vendor_batch_frequency"] = vendor_batch_count.fillna(1)
     else:
         case_agg["vendor_case_frequency"] = 0
-        case_agg['vendor_batch_frequency'] = 1
+        case_agg["vendor_batch_frequency"] = 1
 
     if "resource" in case_agg.columns:
         case_agg["user_case_frequency"] = (
@@ -219,27 +222,31 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     case_agg = pd.get_dummies(case_agg, columns=existing_cats, dummy_na=True)
     case_agg = case_agg.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # ── Step 5: Preserve vendor and amount data before reindex ───────────────────────
-    vendor_data = None
-    amount_data = None
-    
-    # Check both 'vendor' and 'case:Vendor' columns
+    # ── Step 5: Preserve vendor/amount/flag data before reindex ─────────────────
+    vendor_data             = None
+    amount_data             = None
+    vendor_case_freq_data   = None
+    vendor_batch_freq_data  = None
+
     if "vendor" in case_agg.columns:
         vendor_data = case_agg["vendor"].copy()
     elif "case:Vendor" in case_agg.columns:
         vendor_data = case_agg["case:Vendor"].copy()
-    
+
     if "amount" in case_agg.columns:
         amount_data = case_agg["amount"].copy()
     elif "case:Amount" in case_agg.columns:
         amount_data = case_agg["case:Amount"].copy()
-        
-    # Remove vendor and amount columns before reindex to avoid sklearn scaler error
-    columns_to_drop = []
-    if "vendor" in case_agg.columns:
-        columns_to_drop.append("vendor")
-    if "amount" in case_agg.columns:
-        columns_to_drop.append("amount")
+
+    # Save vendor frequency columns — they are NOT in train_columns so reindex
+    # would drop them; we re-inject them after reindex via DF attributes.
+    if "vendor_case_frequency" in case_agg.columns:
+        vendor_case_freq_data = case_agg["vendor_case_frequency"].copy()
+    if "vendor_batch_frequency" in case_agg.columns:
+        vendor_batch_freq_data = case_agg["vendor_batch_frequency"].copy()
+
+    # Remove non-numeric/non-training columns before reindex
+    columns_to_drop = [c for c in ("vendor", "amount") if c in case_agg.columns]
     if columns_to_drop:
         case_agg = case_agg.drop(columns=columns_to_drop)
     
@@ -254,14 +261,16 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
     after = case_agg.shape[1]
     
-    # Store vendor and amount data in separate attributes for the merger to access
-    # This avoids sklearn scaler issues while preserving data for API response
-    # Store AFTER reindex to prevent attribute loss
+    # Store side-channel data as DF attributes so merger/labeler can access them.
+    # (reindex drops any extra columns, so we must use attributes)
     if vendor_data is not None:
-        # Store as a regular attribute instead of attrs
         case_agg._vendor_data = vendor_data
     if amount_data is not None:
         case_agg._amount_data = amount_data
+    if vendor_case_freq_data is not None:
+        case_agg._vendor_case_freq = vendor_case_freq_data
+    if vendor_batch_freq_data is not None:
+        case_agg._vendor_batch_freq = vendor_batch_freq_data
 
     logger.info(
         f"case_features: {before} cols before reindex → "
