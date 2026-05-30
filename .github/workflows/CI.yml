@@ -1,4 +1,4 @@
-name: P2P Platform – CI
+name: CI
 
 on:
   push:
