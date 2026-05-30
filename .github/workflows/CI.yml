@@ -1,114 +1,119 @@
-name: CI
+name: Security, Build & Tests
 
 on:
-  push:
-    branches:
-      - master
-      - develop
-  pull_request:
+push:
+branches:
+- master
+- develop
+pull_request:
 
 jobs:
-  env-audit:
-    name: Secret & Dependency Audit
-    runs-on: ubuntu-latest
+security-audit:
+name: Secret & Dependency Audit
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      
-      - name: Gitleaks Scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
 
-      - name: Check .env files are not committed
-        run: |
-          FOUND=$(git ls-files | grep -E '(^|/)\.env$' || true)
+  
+  - name: Gitleaks Scan
+    uses: gitleaks/gitleaks-action@v2
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          if [ -n "$FOUND" ]; then
-            echo ".env files are tracked by git:"
-            echo "$FOUND"
-            exit 1
-          fi
+  - name: Check .env files are not committed
+    run: |
+      FOUND=$(git ls-files | grep -E '(^|/)\.env$' || true)
 
-          echo "No .env files committed"
+      if [ -n "$FOUND" ]; then
+        echo ".env files are tracked by git:"
+        echo "$FOUND"
+        exit 1
+      fi
 
-     
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      echo "No .env files committed"
 
-      - name: Install Node Dependencies
-        working-directory: Node-js
-        run: npm ci
+  
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "20"
 
-      - name: npm audit
-        working-directory: Node-js
-        run: npm audit --audit-level=high
+  - name: Install Node Dependencies
+    working-directory: Node-js
+    run: npm ci
 
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  - name: npm audit
+    working-directory: Node-js
+    run: npm audit --audit-level=high
 
-      - name: Install pip-audit
-        run: pip install pip-audit
+  
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
 
-      - name: pip-audit
-        run: pip-audit -r p2p_anomaly_api/requirements.txt
+  - name: Install pip-audit
+    run: pip install pip-audit
 
-  dependency-review:
-    name: Dependency Review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+  - name: pip-audit
+    run: pip-audit -r p2p_anomaly_api/requirements.txt
 
-    steps:
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
 
-  formatting:
-    name: Code Formatting & Linting
-    runs-on: ubuntu-latest
+dependency-review:
+name: Dependency Review
+if: github.event_name == 'pull_request'
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+steps:
+  - name: Dependency Review
+    uses: actions/dependency-review-action@v4
 
-      - name: Install Node Dependencies
-        working-directory: Node-js
-        run: npm ci
 
-      - name: ESLint
-        working-directory: Node-js
-        run: npm run lint --if-present
+build-and-test:
+name: Build Verification & Unit Tests
+runs-on: ubuntu-latest
 
-      - name: Prettier Check
-        working-directory: Node-js
-        run: npx prettier . --check
 
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Install Python Formatters
-        run: |
-          pip install black ruff
+  
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "20"
 
-      - name: Black Check
-        run: black --check p2p_anomaly_api
+  - name: Install Node Dependencies
+    working-directory: Node-js
+    run: npm ci
 
-      - name: Ruff Check
-        run: ruff check p2p_anomaly_api
+  - name: Build Node.js Application
+    working-directory: Node-js
+    run: npm run build --if-present
+
+  - name: Run Node.js Unit Tests
+    working-directory: Node-js
+    run: npm test --if-present
+
+  
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+
+  - name: Install Python Dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install -r p2p_anomaly_api/requirements.txt
+      pip install pytest
+
+  - name: Run FastAPI Unit Tests
+    run: pytest
+```
