@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Icon from '../UI/AppIcon';
@@ -41,6 +41,11 @@ const navigationItems: NavigationItem[] = [
 const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: NavigationSidebarProps) => {
   const pathname = usePathname();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [teamRole, setTeamRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTeamRole(localStorage.getItem('p2p_team_role'));
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -172,6 +177,52 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
               })}
             </ul>
           </nav>
+
+          {/* Generate Report — members only */}
+          {teamRole === 'member' && (
+            <div className="px-4 pb-4">
+              <div className="border-t border-border-primary mb-3 mt-1" />
+              {(() => {
+                const path = '/Home/Dashboard/generate-report';
+                const active = isActive(path);
+                const hovered = hoveredItem === path;
+                return (
+                  <Link
+                    href={path}
+                    className={`
+                      group relative flex items-center gap-3 px-3 py-3 rounded-xl
+                      transition-all duration-300 ease-out border border-transparent
+                      ${active
+                        ? 'bg-nobel-gold text-white shadow-md shadow-nobel-gold/20'
+                        : 'text-text-secondary hover:bg-bg-primary hover:border-border-primary hover:text-text-primary hover:-translate-y-0.5 hover:shadow-sm'
+                      }
+                      ${isCollapsed ? 'justify-center' : ''}
+                    `}
+                    onMouseEnter={() => setHoveredItem(path)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon
+                      name="DocumentTextIcon"
+                      size={22}
+                      variant={active ? 'solid' : 'outline'}
+                      className={`flex-shrink-0 transition-transform duration-300 ${hovered && !active ? 'scale-110 text-nobel-gold' : ''}`}
+                    />
+                    {!isCollapsed && (
+                      <span className={`font-sans font-medium text-sm truncate ${active ? 'text-white' : ''}`}>
+                        Generate Report
+                      </span>
+                    )}
+                    {isCollapsed && (
+                      <div className={`absolute left-full ml-4 px-4 py-3 rounded-xl bg-bg-secondary border border-border-primary shadow-lg whitespace-nowrap z-50 pointer-events-none transition-all duration-200 ${hovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`}>
+                        <div className="font-serif font-semibold text-sm text-text-primary">Generate Report</div>
+                      </div>
+                    )}
+                  </Link>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Footer Section */}
           <div className="border-t border-border-primary p-6 bg-bg-primary/30">

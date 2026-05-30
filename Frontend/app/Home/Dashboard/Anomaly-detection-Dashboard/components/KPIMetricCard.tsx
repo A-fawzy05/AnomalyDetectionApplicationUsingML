@@ -13,6 +13,7 @@ interface KPIMetricCardProps {
   sparklineData: number[];
   status: 'success' | 'warning' | 'error' | 'neutral';
   delay?: number;
+  isLive?: boolean;
 }
 
 const KPIMetricCard = ({
@@ -23,7 +24,8 @@ const KPIMetricCard = ({
   icon,
   sparklineData,
   status,
-  delay = 0
+  delay = 0,
+  isLive = false
 }: KPIMetricCardProps) => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -85,7 +87,10 @@ const KPIMetricCard = ({
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <p className="font-sans text-sm text-text-secondary mb-1">{title}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-sans text-sm text-text-secondary">{title}</p>
+            {isLive && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+          </div>
           <h3 className="font-serif text-2xl font-semibold text-text-primary">{displayValue()}</h3>
         </div>
         <div className={`w-10 h-10 rounded-lg bg-nobel-gold/10 flex items-center justify-center ${getStatusColor()}`}>

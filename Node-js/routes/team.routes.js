@@ -14,5 +14,7 @@ router.post('/:id/subteams', TeamController.createSubteam);
 router.delete('/:id/subteams/:subId', TeamController.deleteSubteam);
 router.patch('/:id/subteams/:subId/data', TeamController.updateSubteamData);
 router.get('/:id/subteams/:subId', TeamController.getSubteam);
+router.get('/:id/admin-telegram', TeamController.getAdminTelegram);
+router.post('/:id/send-telegram-report', TeamController.sendTelegramReport);
 
 module.exports = router;

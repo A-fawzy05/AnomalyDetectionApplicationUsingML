@@ -108,6 +108,7 @@ export default function ProfilePage() {
       subteamName: sub.name,
       fastApiRunId: sub.fastApiRunId,
       djangoEventLogId: sub.djangoEventLogId,
+      teamRole: team.role,
     });
     router.push('/Home/Dashboard/Anomaly-detection-Dashboard');
   }
@@ -399,7 +400,7 @@ function TelegramModal({ isDark, token, onClose }: { isDark: boolean; token: str
     if (!chatIdValid) { setMsg({ type: 'error', text: 'Invalid chat ID. Must be a numeric ID from @userinfobot.' }); return; }
     setLoading(true);
     try {
-      const res = await fetch('https://amrfawzy26.app.n8n.cloud/webhook-test/register-telegram', {
+      const res = await fetch('https://amrfawzy26.app.n8n.cloud/webhook/register-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, telegramPhone: phone, telegramChatId: chatId.trim() }),

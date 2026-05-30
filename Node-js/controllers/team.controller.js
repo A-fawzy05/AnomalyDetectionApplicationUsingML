@@ -1,5 +1,6 @@
 const Team = require('../models/Team');
 const User = require('../models/User');
+const https = require('https');
 
 class TeamController {
   // POST /api/teams/create
@@ -254,6 +255,83 @@ class TeamController {
     } catch (err) {
       console.error('Get subteam error:', err);
       res.status(500).json({ success: false, message: 'Failed to get subteam' });
+    }
+  }
+
+  // GET /api/teams/:id/admin-telegram
+  static async getAdminTelegram(req, res) {
+    try {
+      const team = await Team.findById(req.params.id).select('members');
+      if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+      const isMember = team.members.some(m => m.userId.toString() === req.user.userId.toString());
+      if (!isMember) return res.status(403).json({ success: false, message: 'Not a member of this team' });
+
+      const adminMember = team.members.find(m => m.role === 'admin');
+      if (!adminMember) return res.status(404).json({ success: false, message: 'No admin found for this team' });
+
+      const adminUser = await User.findById(adminMember.userId).select('fullName telegramChatId');
+      if (!adminUser) return res.status(404).json({ success: false, message: 'Admin user not found' });
+
+      res.json({
+        success: true,
+        data: {
+          hasTelegram: !!adminUser.telegramChatId,
+          chatId: adminUser.telegramChatId || null,
+          adminName: adminUser.fullName,
+        }
+      });
+    } catch (err) {
+      console.error('getAdminTelegram error:', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch admin Telegram info' });
+    }
+  }
+
+  // POST /api/teams/:id/send-telegram-report
+  static async sendTelegramReport(req, res) {
+    try {
+      const { reportMarkdown, teamName, subteamName, senderName } = req.body;
+      if (!reportMarkdown) return res.status(400).json({ success: false, message: 'reportMarkdown is required' });
+
+      const team = await Team.findById(req.params.id).select('name members');
+      if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+      const isMember = team.members.some(m => m.userId.toString() === req.user.userId.toString());
+      if (!isMember) return res.status(403).json({ success: false, message: 'Not a member of this team' });
+
+      const adminMember = team.members.find(m => m.role === 'admin');
+      if (!adminMember) return res.status(404).json({ success: false, message: 'No admin found for this team' });
+
+      const adminUser = await User.findById(adminMember.userId).select('fullName telegramChatId');
+      if (!adminUser || !adminUser.telegramChatId) {
+        return res.status(400).json({ success: false, message: 'Team admin has no Telegram linked' });
+      }
+
+      const webhookUrl = process.env.N8N_TELEGRAM_WEBHOOK_URL;
+      if (!webhookUrl) return res.status(503).json({ success: false, message: 'Telegram notification service not configured' });
+
+      const n8nRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: adminUser.telegramChatId,
+          admin_name: adminUser.fullName,
+          team_name: teamName || team.name,
+          subteam_name: subteamName || 'Unknown subteam',
+          sender_name: senderName || 'A team member',
+          report_markdown: reportMarkdown,
+        }),
+      });
+
+      const telegramData = await n8nRes.json();
+      if (!n8nRes.ok) {
+        return res.status(502).json({ success: false, message: telegramData?.message || 'Failed to trigger notification workflow' });
+      }
+
+      res.json({ success: true, message: `Report sent to ${adminUser.fullName} on Telegram` });
+    } catch (err) {
+      console.error('sendTelegramReport error:', err);
+      res.status(500).json({ success: false, message: 'Failed to send Telegram report' });
     }
   }
 }

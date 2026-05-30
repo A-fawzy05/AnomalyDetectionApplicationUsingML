@@ -10,10 +10,11 @@ import AnomalyTableRow from './anomalyTableRow';
 import RealTimeAnomalyFeed from './RealTimeAnomalyFeed';
 import ProcessMapVisualization from './ProcessMapVisualization';
 import FilterPanel from './FilterPanel';
+import LiveTelemetryPanel from './LiveTelemetryPanel';
 import Icon from '@/components/UI/AppIcon';
 import { useToast } from '@/components/UI/Toast';
 import { readSubteamContext, updateSubteamContextIds, SubteamContext } from '@/services/team.service';
-import { Upload, RefreshCw, PlusCircle } from 'lucide-react';
+import { Upload, RefreshCw, PlusCircle, Activity } from 'lucide-react';
 
 interface KPIData {
   totalCases: number; anomalousCases: number; anomalyRate: number; avgProcessingTime: string;
@@ -131,6 +132,7 @@ const AnomalyDetectionInteractive = () => {
   const [sortColumn, setSortColumn] = useState('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [dateRange, setDateRange] = useState('last-7-days');
+  const [isLive, setIsLive] = useState(false);
 
   const [ctx, setCtx] = useState<SubteamContext | null>(null);
   const [dashData, setDashData] = useState<ReturnType<typeof mapRunToState> | null>(null);
@@ -160,8 +162,10 @@ const AnomalyDetectionInteractive = () => {
     }
   }, [dateRange]);
 
-  async function fetchData(runId: string, isReplace = false) {
-    setDataLoading(true);
+  async function fetchData(runId: string, isReplace = false, silent = false) {
+    // Silent refresh (used by append while Live) skips the full-page loader so
+    // the Live Telemetry panel stays mounted and ramps to the new real value.
+    if (!silent) setDataLoading(true);
     try {
       const res = await fetch(`${FASTAPI}/runs/${runId}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -181,7 +185,7 @@ const AnomalyDetectionInteractive = () => {
     } catch (err) {
       showToast({ type: 'error', title: 'Failed to load data', message: err instanceof Error ? err.message : 'Unknown error' });
     } finally {
-      setDataLoading(false);
+      if (!silent) setDataLoading(false);
     }
   }
 
@@ -235,7 +239,9 @@ const AnomalyDetectionInteractive = () => {
       form.append('file', file);
       const res = await fetch(`${FASTAPI}/runs/${ctx.fastApiRunId}/append/file`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await fetchData(ctx.fastApiRunId);
+      // Silent refresh while Live keeps the telemetry chart mounted so it ramps
+      // smoothly to the new real values instead of blanking on a loading screen.
+      await fetchData(ctx.fastApiRunId, false, isLive);
       showToast({ type: 'success', title: 'Data appended', message: 'Dashboard refreshed' });
     } catch (err) {
       showToast({ type: 'error', title: 'Append failed', message: err instanceof Error ? err.message : 'Unknown error' });
@@ -326,6 +332,21 @@ const AnomalyDetectionInteractive = () => {
               <p className="font-sans text-base text-text-secondary">Real-time monitoring for procurement irregularities</p>
             </div>
             <div className="flex items-center gap-2 mt-1">
+              {/* Live toggle */}
+              <button
+                onClick={() => setIsLive(v => !v)}
+                title={isLive ? 'Stop live telemetry' : 'Start live telemetry'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                  isLive
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary'
+                }`}
+              >
+                {isLive
+                  ? <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  : <Activity size={15} />}
+                {isLive ? 'Live' : 'Go Live'}
+              </button>
               {/* Append button */}
               <input ref={appendInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAppend(f); e.target.value = ''; }} />
               <button onClick={() => appendInputRef.current?.click()} disabled={isAppending} title="Append data to this run" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary disabled:opacity-50">
@@ -341,12 +362,15 @@ const AnomalyDetectionInteractive = () => {
             </div>
           </div>
 
+          {/* Live Telemetry Panel */}
+          <LiveTelemetryPanel isLive={isLive} anomalyRate={kpiData.anomalyRate} anomalousCases={kpiData.anomalousCases} />
+
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KPIMetricCard title="Total Cases" value={kpiData.totalCases.toLocaleString()} trend={kpiData.trends.totalCases} trendLabel="vs last period" icon="DocumentTextIcon" sparklineData={kpiData.sparklines.totalCases} status="neutral" delay={0} />
-            <KPIMetricCard title="Anomalous Cases" value={kpiData.anomalousCases.toLocaleString()} trend={kpiData.trends.anomalousCases} trendLabel="vs last period" icon="ExclamationTriangleIcon" sparklineData={kpiData.sparklines.anomalousCases} status="error" delay={100} />
-            <KPIMetricCard title="Anomaly Rate" value={`${kpiData.anomalyRate}%`} trend={kpiData.trends.anomalyRate} trendLabel="vs last period" icon="ChartBarIcon" sparklineData={kpiData.sparklines.anomalyRate} status="warning" delay={200} />
-            <KPIMetricCard title="Avg Processing Time" value={kpiData.avgProcessingTime} trend={kpiData.trends.avgProcessingTime} trendLabel="vs last period" icon="ClockIcon" sparklineData={kpiData.sparklines.avgProcessingTime} status="success" delay={300} />
+            <KPIMetricCard title="Total Cases" value={kpiData.totalCases.toLocaleString()} trend={kpiData.trends.totalCases} trendLabel="vs last period" icon="DocumentTextIcon" sparklineData={kpiData.sparklines.totalCases} status="neutral" delay={0} isLive={isLive} />
+            <KPIMetricCard title="Anomalous Cases" value={kpiData.anomalousCases.toLocaleString()} trend={kpiData.trends.anomalousCases} trendLabel="vs last period" icon="ExclamationTriangleIcon" sparklineData={kpiData.sparklines.anomalousCases} status="error" delay={100} isLive={isLive} />
+            <KPIMetricCard title="Anomaly Rate" value={`${kpiData.anomalyRate}%`} trend={kpiData.trends.anomalyRate} trendLabel="vs last period" icon="ChartBarIcon" sparklineData={kpiData.sparklines.anomalyRate} status="warning" delay={200} isLive={isLive} />
+            <KPIMetricCard title="Avg Processing Time" value={kpiData.avgProcessingTime} trend={kpiData.trends.avgProcessingTime} trendLabel="vs last period" icon="ClockIcon" sparklineData={kpiData.sparklines.avgProcessingTime} status="success" delay={300} isLive={isLive} />
           </div>
 
           {/* Main Content Grid */}

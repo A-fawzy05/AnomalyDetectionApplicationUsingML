@@ -378,22 +378,22 @@ class AuthController {
   static async updateTelegramPhone(req, res) {
     try {
       const { telegramPhone, telegramChatId } = req.body;
-      if (!telegramPhone) {
-        return res.status(400).json({ success: false, message: 'telegramPhone is required' });
+      if (!telegramPhone || !telegramChatId) {
+        return res.status(400).json({ success: false, message: 'telegramPhone and telegramChatId are required' });
       }
       const phoneRegex = /^\+?[0-9]{7,15}$/;
       if (!phoneRegex.test(telegramPhone)) {
         return res.status(400).json({ success: false, message: 'Invalid phone number format' });
       }
-      if (telegramChatId !== undefined) {
-        const chatIdRegex = /^[0-9]{5,15}$/;
-        if (!chatIdRegex.test(String(telegramChatId).trim())) {
-          return res.status(400).json({ success: false, message: 'Invalid chat ID format' });
-        }
+      const chatIdRegex = /^-?[0-9]{5,15}$/;
+      if (!chatIdRegex.test(String(telegramChatId).trim())) {
+        return res.status(400).json({ success: false, message: 'Invalid chat ID format' });
       }
 
-      const update = { telegramPhone };
-      if (telegramChatId) update.telegramChatId = String(telegramChatId).trim();
+      const update = {
+        telegramPhone,
+        telegramChatId: String(telegramChatId).trim(),
+      };
 
       const user = await User.findByIdAndUpdate(req.user.userId, update, { new: true });
 

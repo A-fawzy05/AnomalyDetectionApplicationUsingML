@@ -22,8 +22,11 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: List[str] = ["*"]
 
-    # Kafka
+    # Kafka (kept for stream endpoints; not used by report)
     KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+
+    # n8n report webhook (called synchronously by POST /runs/{id}/report)
+    N8N_REPORT_WEBHOOK_URL: str = "https://amrfawzy26.app.n8n.cloud/webhook/generate-p2p-report"
 
     # App Settings
     LOG_LEVEL: str = "INFO"

@@ -91,6 +91,25 @@ class TeamService {
     const res = await fetch(`${API_BASE}/${teamId}/subteams/${subId}`, { headers: authHeaders() });
     return handleResponse<{ success: boolean; data: Subteam & { teamId: string; teamName: string } }>(res);
   }
+
+  async getAdminTelegram(teamId: string) {
+    const res = await fetch(`${API_BASE}/${teamId}/admin-telegram`, { headers: authHeaders() });
+    return handleResponse<{ success: boolean; data: { hasTelegram: boolean; chatId: string | null; adminName: string } }>(res);
+  }
+
+  async sendTelegramReport(teamId: string, payload: {
+    reportMarkdown: string;
+    teamName: string;
+    subteamName: string;
+    senderName: string;
+  }) {
+    const res = await fetch(`${API_BASE}/${teamId}/send-telegram-report`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
+  }
 }
 
 const teamService = new TeamService();
@@ -105,6 +124,7 @@ export interface SubteamContext {
   subteamName: string;
   fastApiRunId: string | null;
   djangoEventLogId: string | null;
+  teamRole: 'admin' | 'member';
 }
 
 export function saveSubteamContext(ctx: SubteamContext) {
@@ -114,6 +134,7 @@ export function saveSubteamContext(ctx: SubteamContext) {
   localStorage.setItem('p2p_subteam_name', ctx.subteamName);
   localStorage.setItem('p2p_fast_api_run_id', ctx.fastApiRunId || '');
   localStorage.setItem('p2p_django_event_log_id', ctx.djangoEventLogId || '');
+  localStorage.setItem('p2p_team_role', ctx.teamRole);
 }
 
 export function readSubteamContext(): SubteamContext | null {
@@ -127,6 +148,7 @@ export function readSubteamContext(): SubteamContext | null {
     subteamName: localStorage.getItem('p2p_subteam_name') || '',
     fastApiRunId: localStorage.getItem('p2p_fast_api_run_id') || null,
     djangoEventLogId: localStorage.getItem('p2p_django_event_log_id') || null,
+    teamRole: (localStorage.getItem('p2p_team_role') as 'admin' | 'member') || 'member',
   };
 }
 
