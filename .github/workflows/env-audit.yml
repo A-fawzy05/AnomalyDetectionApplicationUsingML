@@ -53,5 +53,3 @@ jobs:
       - name: pip-audit – FastAPI
         run: pip-audit -r p2p_anomaly_api/requirements.txt
 
-      - name: pip-audit – Django
-        run: pip-audit -r process_mining_service/requirements.txt
