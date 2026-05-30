@@ -175,9 +175,6 @@ services:
       NODEJS_URL: http://nodejs:3001
     volumes:
       - django_media:/app/mediafiles
-    command: >
-      bash -c "python manage.py migrate &&
-               gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 config.wsgi:application"
     depends_on:
       postgres_django:
         condition: service_healthy
