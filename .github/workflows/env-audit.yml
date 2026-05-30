@@ -1,0 +1,60 @@
+name: Env & Secret Audit
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  env-audit:
+    name: Secret & Env Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks – scan for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check .env files are not committed
+        run: |
+          FOUND=$(git ls-files | grep -E '(^|/)\.env$' || true)
+          if [ -n "$FOUND" ]; then
+            echo "❌ .env files are tracked by git:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "✅ No .env files committed"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm audit – Frontend
+        working-directory: Frontend
+        run: npm audit --audit-level=high
+
+      - name: npm audit – Node.js Gateway
+        working-directory: Node-js
+        run: npm audit --audit-level=high
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11.9"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: pip-audit – FastAPI
+        run: pip-audit -r p2p_anomaly_api/requirements.txt
+
+      - name: pip-audit – Django
+        run: pip-audit -r process_mining_service/requirements.txt
