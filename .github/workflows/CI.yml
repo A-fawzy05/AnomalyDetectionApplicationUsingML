@@ -1,11 +1,11 @@
-name: Security, Build & Tests
+name: CI
 
 on:
 push:
 branches:
 - master
 - develop
-pull_request:
+
 
 jobs:
 security-audit:
