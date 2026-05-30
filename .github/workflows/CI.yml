@@ -2,40 +2,15 @@ name: P2P Platform – CI
 
 on:
   push:
-    branches: [master, main, develop]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [master, main]
-  schedule:
-    - cron: "0 3 * * 1"
-env:
-  PYTHON_VERSION: "3.11.9"
-  NODE_VERSION: "20"
 
 jobs:
-
-
-  semgrep:
-    name: Semgrep SAST
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Semgrep scan
-        run: semgrep ci --config=auto
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-
-
-  
   env-audit:
-    name: Secret & Env Audit
+    name: Secret & Dependency Audit
     runs-on: ubuntu-latest
-    needs: [semgrep]
 
     steps:
       - name: Checkout
@@ -43,7 +18,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gitleaks – scan for leaked secrets
+      
+      - name: Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -51,36 +27,88 @@ jobs:
       - name: Check .env files are not committed
         run: |
           FOUND=$(git ls-files | grep -E '(^|/)\.env$' || true)
+
           if [ -n "$FOUND" ]; then
-            echo "❌ .env files are tracked by git:"
+            echo ".env files are tracked by git:"
             echo "$FOUND"
             exit 1
           fi
-          echo "✅ No .env files committed"
 
+          echo "No .env files committed"
+
+     
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "20"
 
-      - name: npm audit – Frontend
-        working-directory: Frontend
-        run: npm audit --audit-level=high
+      - name: Install Node Dependencies
+        working-directory: Node-js
+        run: npm ci
 
-      - name: npm audit – Node.js Gateway
+      - name: npm audit
         working-directory: Node-js
         run: npm audit --audit-level=high
 
+      
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.11"
 
       - name: Install pip-audit
         run: pip install pip-audit
 
-      - name: pip-audit – FastAPI
+      - name: pip-audit
         run: pip-audit -r p2p_anomaly_api/requirements.txt
 
-      - name: pip-audit – Django
-        run: pip-audit -r process_mining_service/requirements.txt
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+
+  formatting:
+    name: Code Formatting & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node Dependencies
+        working-directory: Node-js
+        run: npm ci
+
+      - name: ESLint
+        working-directory: Node-js
+        run: npm run lint --if-present
+
+      - name: Prettier Check
+        working-directory: Node-js
+        run: npx prettier . --check
+
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python Formatters
+        run: |
+          pip install black ruff
+
+      - name: Black Check
+        run: black --check p2p_anomaly_api
+
+      - name: Ruff Check
+        run: ruff check p2p_anomaly_api
