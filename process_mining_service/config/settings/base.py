@@ -18,6 +18,7 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv(
 # Application definition
 # ---------------------------------------------------------------------------
 DJANGO_APPS = [
+    "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
 ]
@@ -26,22 +27,26 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "django_filters",
     "drf_spectacular",
+    "corsheaders",
 ]
 
 LOCAL_APPS = [
-    "apps.common",
-    "apps.event_logs",
-    "apps.performance",
-    "apps.variants",
+    "apps.common.apps.CommonConfig",
+    "apps.event_logs.apps.EventLogsConfig",
+    "apps.performance.apps.PerformanceConfig",
+    "apps.variants.apps.VariantsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = "config.urls"
 

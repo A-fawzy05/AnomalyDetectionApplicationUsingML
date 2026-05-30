@@ -1,0 +1,205 @@
+version: "3.9"
+
+# All containers share p2p_net and resolve each other by service name.
+# Browser-facing ports are exposed to the host; inter-service traffic stays internal.
+# MongoDB is on Atlas (cloud) — no local MongoDB container needed.
+
+networks:
+  p2p_net:
+    driver: bridge
+
+volumes:
+  postgres_fastapi_data:
+  postgres_django_data:
+  django_media:
+  fastapi_artifacts:
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgres_fastapi:
+    image: postgres:16-alpine
+    hostname: postgres_fastapi
+    container_name: p2p_postgres_fastapi
+    restart: unless-stopped
+    networks: [p2p_net]
+    environment:
+      POSTGRES_DB: ${POSTGRES_FASTAPI_DB:-p2p_db}
+      POSTGRES_USER: ${POSTGRES_FASTAPI_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_FASTAPI_PASSWORD:-postgres}
+    volumes:
+      - postgres_fastapi_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d p2p_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_django:
+    image: postgres:16-alpine
+    hostname: postgres_django
+    container_name: p2p_postgres_django
+    restart: unless-stopped
+    networks: [p2p_net]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DJANGO_DB:-process_mining_db}
+      POSTGRES_USER: ${POSTGRES_DJANGO_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_DJANGO_PASSWORD:-postgres}
+    volumes:
+      - postgres_django_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d process_mining_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    hostname: zookeeper
+    container_name: p2p_zookeeper
+    restart: unless-stopped
+    networks: [p2p_net]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    hostname: kafka
+    container_name: p2p_kafka
+    restart: unless-stopped
+    networks: [p2p_net]
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9093:9093"   # host-accessible for debugging; containers use kafka:9092
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ── Application services ───────────────────────────────────────────────────
+
+  nodejs:
+    build:
+      context: ./Node-js
+      dockerfile: Dockerfile
+    image: p2p_nodejs
+    hostname: nodejs
+    container_name: p2p_nodejs
+    restart: unless-stopped
+    networks: [p2p_net]
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+      # MongoDB Atlas connection string — set in .env
+      MONGODB_URI: ${MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      # CORS origin — browser hits localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      # Internal hostname used by other services to call Node.js
+      NODEJS_URL: http://nodejs:3001
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@p2p-insight.com}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: http://localhost:3001/auth/google/callback
+    # No depends_on — Atlas is external, no local container to wait for
+
+  fastapi:
+    build:
+      context: ./p2p_anomaly_api
+      dockerfile: Dockerfile
+    image: p2p_fastapi
+    hostname: fastapi
+    container_name: p2p_fastapi
+    restart: unless-stopped
+    networks: [p2p_net]
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_FASTAPI_USER:-postgres}:${POSTGRES_FASTAPI_PASSWORD:-postgres}@postgres_fastapi:5432/${POSTGRES_FASTAPI_DB:-p2p_db}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      LOG_LEVEL: ${FASTAPI_LOG_LEVEL:-INFO}
+      NODEJS_URL: http://nodejs:3001
+    volumes:
+      - fastapi_artifacts:/app/artifacts
+    depends_on:
+      postgres_fastapi:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  django:
+    build:
+      context: ./process_mining_service
+      dockerfile: Dockerfile
+    image: p2p_django
+    hostname: django
+    container_name: p2p_django
+    restart: unless-stopped
+    networks: [p2p_net]
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me}
+      DEBUG: ${DJANGO_DEBUG:-False}
+      ALLOWED_HOSTS: localhost,127.0.0.1,django
+      DB_NAME: ${POSTGRES_DJANGO_DB:-process_mining_db}
+      DB_USER: ${POSTGRES_DJANGO_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_DJANGO_PASSWORD:-postgres}
+      DB_HOST: postgres_django
+      DB_PORT: 5432
+      FASTAPI_ANOMALY_SERVICE_URL: http://fastapi:8001
+      NODEJS_URL: http://nodejs:3001
+    volumes:
+      - django_media:/app/mediafiles
+    command: >
+      bash -c "python manage.py migrate &&
+               gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 config.wsgi:application"
+    depends_on:
+      postgres_django:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    image: p2p_frontend
+    hostname: frontend
+    container_name: p2p_frontend
+    restart: unless-stopped
+    networks: [p2p_net]
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # Baked in at build time — browser hits host-exposed ports on localhost
+      NEXT_PUBLIC_NODEJS_URL: http://localhost:3001
+      NEXT_PUBLIC_FASTAPI_URL: http://localhost:8001
+      NEXT_PUBLIC_DJANGO_URL: http://localhost:8000
+    depends_on:
+      - nodejs
+      - fastapi
+      - django

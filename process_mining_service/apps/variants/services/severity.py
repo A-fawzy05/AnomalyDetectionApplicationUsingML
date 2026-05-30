@@ -10,6 +10,49 @@ from apps.variants.models import ProcessVariant, CaseAnomalySeverity
 logger = logging.getLogger(__name__)
 
 
+def _ensure_case_variant_ids(
+    event_log: EventLog, variants: list[ProcessVariant]
+) -> None:
+    """
+    Rebuild P2PCase.variant_id for any cases where it is NULL.
+
+    This is needed when pm4py variant discovery ran before the fix that
+    persists variant_id on P2PCase, or when the DB state is out of sync.
+    Matches each case's ordered activity sequence against the ProcessVariant
+    activity_sequence list and stamps the correct variant_id.
+    """
+    from collections import defaultdict
+    from apps.event_logs.models import P2PEvent
+
+    # Fast path: if no cases are missing variant_id, do nothing
+    if not P2PCase.objects.filter(event_log=event_log, variant_id__isnull=True).exists():
+        return
+
+    logger.info({"event": "rebuilding_case_variant_ids", "event_log_id": str(event_log.id)})
+
+    # Build activity sequence per case (ordered by timestamp)
+    case_sequences: dict = defaultdict(list)
+    for evt in (
+        P2PEvent.objects.filter(case__event_log=event_log)
+        .order_by("case__case_id", "timestamp")
+        .values("case_id", "activity")
+    ):
+        case_sequences[evt["case_id"]].append(evt["activity"])
+
+    # Build lookup: tuple(activity_sequence) → variant_id
+    seq_to_variant_id = {
+        tuple(v.activity_sequence): v.variant_id for v in variants
+    }
+
+    # Stamp variant_id on each case whose sequence matches a known variant
+    for case_pk, seq in case_sequences.items():
+        vid = seq_to_variant_id.get(tuple(seq))
+        if vid is not None:
+            P2PCase.objects.filter(pk=case_pk, event_log=event_log).update(variant_id=vid)
+
+    logger.info({"event": "case_variant_ids_rebuilt", "event_log_id": str(event_log.id)})
+
+
 def compute_anomaly_rates(
     event_log: EventLog, variants: list[ProcessVariant]
 ) -> None:
@@ -24,6 +67,9 @@ def compute_anomaly_rates(
             "event_log_id": str(event_log.id),
         }
     )
+
+    # Ensure P2PCase.variant_id is populated before querying
+    _ensure_case_variant_ids(event_log, variants)
 
     for variant in variants:
         variant_cases = P2PCase.objects.filter(

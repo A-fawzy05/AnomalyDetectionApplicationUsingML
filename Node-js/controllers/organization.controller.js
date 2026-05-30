@@ -172,7 +172,7 @@ class OrganizationController {
     try {
       const organizations = await Organization.find({
         'members.userId': req.user.userId
-      }).select('name members createdBy createdAt');
+      }).select('name members createdBy createdAt lastRunId');
 
       const result = organizations.map(org => {
         const membership = org.members.find(
@@ -185,7 +185,8 @@ class OrganizationController {
           canViewDashboard: membership ? membership.canViewDashboard : false,
           memberCount: org.members.length,
           isCreator: org.createdBy.toString() === req.user.userId.toString(),
-          createdAt: org.createdAt
+          createdAt: org.createdAt,
+          lastRunId: org.lastRunId || null
         };
       });
 
@@ -199,6 +200,43 @@ class OrganizationController {
         success: false,
         message: 'Failed to fetch organizations'
       });
+    }
+  }
+
+  // PATCH /api/org/:id/run  — save the last analysis run_id on the organization
+  static async updateRunId(req, res) {
+    try {
+      const { id } = req.params;
+      const { runId } = req.body;
+
+      if (!runId) {
+        return res.status(400).json({ success: false, message: 'runId is required' });
+      }
+
+      const organization = await Organization.findById(id);
+      if (!organization) {
+        return res.status(404).json({ success: false, message: 'Organization not found' });
+      }
+
+      // Only members of the org can set the run id
+      const isMember = organization.members.some(
+        m => m.userId.toString() === req.user.userId.toString()
+      );
+      if (!isMember) {
+        return res.status(403).json({ success: false, message: 'You are not a member of this organization' });
+      }
+
+      organization.lastRunId = runId;
+      await organization.save();
+
+      res.json({
+        success: true,
+        message: 'Run ID saved to organization',
+        data: { organizationId: id, lastRunId: organization.lastRunId }
+      });
+    } catch (error) {
+      console.error('Update org run ID error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update run ID' });
     }
   }
 

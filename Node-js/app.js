@@ -7,6 +7,7 @@ const connectDB = require('./config/db.config');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const orgRoutes = require('./routes/organization.routes');
+const teamRoutes = require('./routes/team.routes');
 
 const app = express();
 
@@ -20,7 +21,7 @@ app.use(helmet());
 app.use(cors({
   origin: config.FRONTEND_URL,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -40,6 +41,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/org', orgRoutes);
+app.use('/api/teams', teamRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

@@ -5,6 +5,7 @@ from .views import (
     ActivityRankingView,
     ProcessFlowView,
     PerformanceCasesView,
+    PerformanceAnalysisAggregatedView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path("activity-ranking/", ActivityRankingView.as_view(), name="performance-activity-ranking"),
     path("process-flow/", ProcessFlowView.as_view(), name="performance-process-flow"),
     path("cases/", PerformanceCasesView.as_view(), name="performance-cases"),
+    path("aggregate/", PerformanceAnalysisAggregatedView.as_view(), name="performance-aggregate"),
 ]

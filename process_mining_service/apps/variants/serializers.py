@@ -136,3 +136,13 @@ class CaseAnomalySeverityWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseAnomalySeverity
         fields = ["case_id", "severity", "anomaly_score", "anomaly_count", "flagged_by"]
+
+
+# ---------------------------------------------------------------------------
+# Variant analysis aggregate request (with FastAPI data)
+# ---------------------------------------------------------------------------
+class VariantAnalysisAggregateRequestSerializer(serializers.Serializer):
+    event_log_id = serializers.UUIDField(required=True)
+    run_id = serializers.UUIDField(required=False)
+    anomaly_data = serializers.JSONField(required=False)
+    recompute_conformance = serializers.BooleanField(required=False, default=False)

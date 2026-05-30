@@ -350,7 +350,7 @@ class AuthController {
   static async getProfile(req, res) {
     try {
       const user = await User.findById(req.user.userId);
-      
+
       res.json({
         success: true,
         data: {
@@ -361,7 +361,8 @@ class AuthController {
           isEmailVerified: user.isEmailVerified,
           profilePicture: user.profilePicture,
           lastLogin: user.lastLogin,
-          createdAt: user.createdAt
+          createdAt: user.createdAt,
+          telegramPhone: user.telegramPhone || null
         }
       });
     } catch (error) {
@@ -372,6 +373,45 @@ class AuthController {
       });
     }
   }
+
+  // Save / update telegram phone number and chat ID
+  static async updateTelegramPhone(req, res) {
+    try {
+      const { telegramPhone, telegramChatId } = req.body;
+      if (!telegramPhone) {
+        return res.status(400).json({ success: false, message: 'telegramPhone is required' });
+      }
+      const phoneRegex = /^\+?[0-9]{7,15}$/;
+      if (!phoneRegex.test(telegramPhone)) {
+        return res.status(400).json({ success: false, message: 'Invalid phone number format' });
+      }
+      if (telegramChatId !== undefined) {
+        const chatIdRegex = /^[0-9]{5,15}$/;
+        if (!chatIdRegex.test(String(telegramChatId).trim())) {
+          return res.status(400).json({ success: false, message: 'Invalid chat ID format' });
+        }
+      }
+
+      const update = { telegramPhone };
+      if (telegramChatId) update.telegramChatId = String(telegramChatId).trim();
+
+      const user = await User.findByIdAndUpdate(req.user.userId, update, { new: true });
+
+      res.json({
+        success: true,
+        message: 'Telegram account linked',
+        data: {
+          telegramPhone: user.telegramPhone,
+          telegramChatId: user.telegramChatId || null
+        }
+      });
+    } catch (error) {
+      console.error('Update telegram phone error:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
 }
+
 
 module.exports = AuthController;

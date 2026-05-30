@@ -84,18 +84,33 @@ def _try_pm4py_discovery(event_log: EventLog) -> Optional[list[ProcessVariant]]:
             case_count = len(cases_in_variant)
             freq_pct = (case_count / total_cases) * 100.0
 
-            # Average duration for this variant's cases
-            case_ids_in_variant = [
-                c.attributes.get("concept:name", "") if hasattr(c, "attributes") else ""
-                for c in cases_in_variant
-            ]
-            # Duration from P2PCase
-            durations = list(
+            # Extract case IDs from pm4py Trace objects
+            case_ids_in_variant = []
+            for c in cases_in_variant:
+                if hasattr(c, "attributes"):
+                    cid = c.attributes.get("concept:name", "")
+                else:
+                    cid = str(c)
+                if cid:
+                    case_ids_in_variant.append(cid)
+
+            # Update P2PCase.variant_id so conformance checking can find cases by variant
+            if case_ids_in_variant:
                 P2PCase.objects.filter(
-                    event_log=event_log,
-                    cycle_time_days__isnull=False,
-                ).values_list("cycle_time_days", flat=True)[:case_count]
-            )
+                    case_id__in=case_ids_in_variant, event_log=event_log
+                ).update(variant_id=idx)
+
+            # Duration from P2PCase using the actual case IDs for this variant
+            if case_ids_in_variant:
+                durations = list(
+                    P2PCase.objects.filter(
+                        case_id__in=case_ids_in_variant,
+                        event_log=event_log,
+                        cycle_time_days__isnull=False,
+                    ).values_list("cycle_time_days", flat=True)
+                )
+            else:
+                durations = []
             avg_dur = sum(durations) / len(durations) if durations else 0.0
 
             name = _name_variant(activity_seq)

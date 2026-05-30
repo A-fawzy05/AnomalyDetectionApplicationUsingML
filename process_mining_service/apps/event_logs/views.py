@@ -109,3 +109,41 @@ class EventLogStatusView(APIView):
             )
         serializer = EventLogStatusSerializer(event_log)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ClearAllDataView(APIView):
+    """Delete all data from the database for testing purposes."""
+
+    @extend_schema(
+        responses={200: None},
+        summary="Clear all data (TESTING ONLY)",
+        description=(
+            "DANGER: This deletes ALL data from the database including event logs, cases, events, "
+            "variants, metrics, and anomaly severity data. This endpoint is for testing/development only."
+        ),
+        tags=["Event Logs"],
+    )
+    def delete(self, request: Request) -> Response:
+        from django.db import transaction
+        from apps.event_logs.models import EventLog, P2PCase, P2PEvent
+        from apps.performance.models import ActivityMetric, WeeklyMetric
+        from apps.variants.models import ProcessVariant, CaseAnomalySeverity
+
+        logger.warning({"event": "clear_all_data_requested"})
+
+        with transaction.atomic():
+            # Delete in order of dependencies
+            CaseAnomalySeverity.objects.all().delete()
+            ActivityMetric.objects.all().delete()
+            WeeklyMetric.objects.all().delete()
+            ProcessVariant.objects.all().delete()
+            P2PEvent.objects.all().delete()
+            P2PCase.objects.all().delete()
+            EventLog.objects.all().delete()
+
+        logger.info({"event": "clear_all_data_complete"})
+
+        return Response(
+            {"message": "All data has been cleared from the database"},
+            status=status.HTTP_200_OK,
+        )

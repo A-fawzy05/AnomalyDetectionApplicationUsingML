@@ -91,3 +91,18 @@ class HealthResponse(BaseModel):
     models_loaded: bool
     version: str
 
+
+class AppendResponse(BaseModel):
+    """Response for POST /runs/{run_id}/append and /runs/{run_id}/append/file."""
+    run_id: UUID
+    # How many cases were in the appended batch
+    appended_cases: int
+    updated_cases: int          # cases whose case_id already existed in the run
+    new_cases: int              # brand-new case_ids added to the run
+    # Anomalies found only in the new batch (top 50)
+    new_anomalies: List[AnomalyCase]
+    # Run summary recomputed over ALL cases (original + new)
+    updated_summary: Summary
+    process_flow_map: List[PhaseFlow]
+    real_time_feed: List[RealTimeFeedItem]
+

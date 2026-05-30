@@ -152,8 +152,8 @@ def compute_bottleneck_metrics(event_log: EventLog) -> None:
             variance_pct = 0.0
 
         is_bottleneck = avg > bottleneck_threshold
-        severity = _severity_from_duration(avg) if is_bottleneck else "low"
-        recommendation = _get_recommendation(act, severity) if is_bottleneck else None
+        severity = _severity_from_duration(avg)
+        recommendation = _get_recommendation(act, severity)
 
         metrics_to_create.append(
             ActivityMetric(
@@ -164,7 +164,7 @@ def compute_bottleneck_metrics(event_log: EventLog) -> None:
                 max_duration_days=max_d,
                 variance_pct=variance_pct,
                 is_bottleneck=is_bottleneck,
-                bottleneck_severity=severity if is_bottleneck else None,
+                bottleneck_severity=severity,
                 recommendation=recommendation,
             )
         )

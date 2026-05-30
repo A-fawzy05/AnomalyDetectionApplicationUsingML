@@ -131,35 +131,6 @@ const VariantAnomalyBreakdown = ({
         </div>
       </div>
 
-      <div className="bg-bg-secondary border border-border-primary rounded-xl p-6">
-        <h3 className="font-serif text-base font-semibold text-text-primary mb-4">
-          Quick Insights
-        </h3>
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20">
-            <Icon name="LightBulbIcon" size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-sans text-sm text-text-primary font-medium mb-1">
-                High Anomaly Concentration
-              </p>
-              <p className="font-sans text-xs text-text-secondary">
-                This variant shows {((anomalousCases / totalCases) * 100).toFixed(1)}% anomaly rate, which is above the threshold
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20">
-            <Icon name="ChartBarIcon" size={20} className="text-nobel-gold flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-sans text-sm text-text-primary font-medium mb-1">
-                Process Optimization Opportunity
-              </p>
-              <p className="font-sans text-xs text-text-secondary">
-                Consider reviewing this variant for potential process improvements
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

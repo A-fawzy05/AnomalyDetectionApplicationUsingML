@@ -10,6 +10,7 @@ router.use(authenticate);
 router.post('/create', OrganizationController.create);
 router.post('/join', OrganizationController.join);
 router.get('/my-orgs', OrganizationController.getMyOrgs);
+router.patch('/:id/run', OrganizationController.updateRunId);
 router.delete('/:id', OrganizationController.deleteOrg);
 
 module.exports = router;

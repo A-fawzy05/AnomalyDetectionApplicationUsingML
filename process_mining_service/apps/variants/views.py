@@ -23,6 +23,7 @@ from .serializers import (
     VariantDetailSerializer,
     AnomalySeverityDistributionSerializer,
     CaseAnomalySeverityWriteSerializer,
+    VariantAnalysisAggregateRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -397,3 +398,260 @@ class CaseAnomalySeverityPushView(APIView):
             }
         )
         return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
+
+
+class VariantAnalysisAggregatedView(APIView):
+    """POST /api/v1/variants/aggregate/ — All variant analysis in one endpoint with FastAPI input in body."""
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("period", OpenApiTypes.STR, required=False, enum=["7d", "30d", "90d"]),
+            OpenApiParameter("min_frequency", OpenApiTypes.FLOAT, required=False),
+            OpenApiParameter("max_frequency", OpenApiTypes.FLOAT, required=False),
+            OpenApiParameter("conformance_threshold", OpenApiTypes.FLOAT, required=False),
+            OpenApiParameter("sort_by", OpenApiTypes.STR, required=False,
+                             enum=["frequency", "anomaly_rate", "conformance", "cases", "avg_duration"]),
+            OpenApiParameter("order", OpenApiTypes.STR, required=False, enum=["asc", "desc"]),
+            OpenApiParameter("filter", OpenApiTypes.STR, required=False,
+                             enum=["high_frequency", "high_conformance", "rare_variants", "low_conformance"]),
+            OpenApiParameter("variant_page", OpenApiTypes.INT, required=False),
+            OpenApiParameter("variant_page_size", OpenApiTypes.INT, required=False),
+        ],
+        request=VariantAnalysisAggregateRequestSerializer,
+        responses={200: None},
+        summary="Aggregated Variant Analysis with FastAPI Input",
+        description="Returns all variant analysis data in a single response: summary, scatter, list, and severity distribution. Accepts FastAPI anomaly data in request body with event_log_id and run_id. Optionally recomputes conformance scores.",
+        tags=["Variant Analysis"],
+    )
+    def post(self, request: Request) -> Response:
+        from apps.event_logs.models import P2PCase
+
+        serializer = VariantAnalysisAggregateRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return error_response("VALIDATION_ERROR", str(serializer.errors), 400)
+
+        data = serializer.validated_data
+        event_log_id = data["event_log_id"]
+        run_id = data.get("run_id")
+        anomaly_data = data.get("anomaly_data")
+        recompute_conformance = data.get("recompute_conformance", False)
+
+        event_log = _get_event_log(event_log_id)
+        if not event_log:
+            return error_response(
+                "EVENT_LOG_NOT_FOUND",
+                f"No event log with id {event_log_id}",
+                status.HTTP_404_NOT_FOUND,
+            )
+
+        logger.info({"event": "variant_aggregate_request", "event_log_id": event_log_id, "run_id": str(run_id) if run_id else None})
+
+        # ---- Process FastAPI anomaly data if provided ----
+        anomaly_data_processed = False
+        if anomaly_data:
+            # Handle full FastAPI response format with anomaly_cases array
+            if "anomaly_cases" in anomaly_data:
+                # Map FastAPI severity labels to Django severity enum
+                severity_map = {
+                    "Critical": "critical",
+                    "High": "high",
+                    "Medium": "medium",
+                    "Low": "low",
+                }
+                for case_anomaly in anomaly_data["anomaly_cases"]:
+                    case_id_str = case_anomaly.get("case_id")
+                    try:
+                        case = P2PCase.objects.get(case_id=case_id_str)
+                        # Extract flags as flagged_by list
+                        flags = case_anomaly.get("flags", {})
+                        flagged_by = [flag for flag, is_flagged in flags.items() if is_flagged]
+                        # Map severity label to lowercase
+                        severity_label = case_anomaly.get("severity_label", "none")
+                        severity = severity_map.get(severity_label, "none")
+                        CaseAnomalySeverity.objects.update_or_create(
+                            case=case,
+                            defaults={
+                                "severity": severity,
+                                "anomaly_score": case_anomaly.get("severity_score"),
+                                "anomaly_count": 1,  # Each case counted once
+                                "flagged_by": flagged_by,
+                            },
+                        )
+                    except P2PCase.DoesNotExist:
+                        logger.warning({"event": "case_not_found_for_anomaly", "case_id": case_id_str})
+                anomaly_data_processed = True
+                logger.info({"event": "fastapi_anomaly_data_processed", "event_log_id": event_log_id})
+            else:
+                # Handle simplified format {case_id: {severity, anomaly_score, anomaly_count, flagged_by}}
+                for case_id_str, case_data in anomaly_data.items():
+                    try:
+                        case = P2PCase.objects.get(pk=case_id_str)
+                        CaseAnomalySeverity.objects.update_or_create(
+                            case=case,
+                            defaults={
+                                "severity": case_data.get("severity", "none"),
+                                "anomaly_score": case_data.get("anomaly_score"),
+                                "anomaly_count": case_data.get("anomaly_count", 0),
+                                "flagged_by": case_data.get("flagged_by", []),
+                            },
+                        )
+                    except P2PCase.DoesNotExist:
+                        logger.warning({"event": "case_not_found_for_anomaly", "case_id": case_id_str})
+                anomaly_data_processed = True
+                logger.info({"event": "fastapi_anomaly_data_processed", "event_log_id": event_log_id})
+
+        # ---- Recompute conformance and/or anomaly rates ----
+        from apps.variants.services.conformance import compute_conformance
+        from apps.variants.services.severity import compute_anomaly_rates
+
+        variants_for_recompute = list(ProcessVariant.objects.filter(event_log=event_log))
+
+        # Auto-recompute conformance if explicitly requested OR if all scores are still 0
+        all_zero_conformance = variants_for_recompute and all(
+            v.conformance_score == 0.0 for v in variants_for_recompute
+        )
+        if recompute_conformance or all_zero_conformance:
+            compute_conformance(event_log, variants_for_recompute)
+            # Refresh from DB after save
+            variants_for_recompute = list(ProcessVariant.objects.filter(event_log=event_log))
+            recompute_conformance = True
+            logger.info({"event": "conformance_recomputed", "event_log_id": event_log_id})
+
+        # Always recompute anomaly rates when anomaly data was just processed,
+        # or when conformance was recomputed (which may have refreshed the variant list)
+        if anomaly_data_processed or recompute_conformance:
+            compute_anomaly_rates(event_log, variants_for_recompute)
+            logger.info({"event": "anomaly_rates_recomputed", "event_log_id": event_log_id})
+
+        # ---- Variant Summary ----
+        variants = ProcessVariant.objects.filter(event_log=event_log)
+        total = variants.count()
+        most_frequent = variants.order_by("-frequency_pct").first()
+        highest_anomaly = variants.order_by("-anomaly_rate_pct").first()
+
+        if total > 0:
+            avg_conformance = sum(v.conformance_score for v in variants) / total
+        else:
+            avg_conformance = 0.0
+
+        # ---- Frequency Anomaly Scatter ----
+        try:
+            min_freq = float(request.query_params.get("min_frequency", 0))
+            max_freq = float(request.query_params.get("max_frequency", 100))
+            conf_threshold = float(request.query_params.get("conformance_threshold", 0))
+        except ValueError:
+            min_freq, max_freq, conf_threshold = 0.0, 100.0, 0.0
+
+        scatter_qs = variants.filter(
+            frequency_pct__gte=min_freq,
+            frequency_pct__lte=max_freq,
+            conformance_score__gte=conf_threshold,
+        )
+
+        def _color_category(anomaly_rate: float) -> str:
+            if anomaly_rate < 8:
+                return "low"
+            if anomaly_rate <= 15:
+                return "medium"
+            return "high"
+
+        scatter_data = [
+            {
+                "variant_id": v.variant_id,
+                "name": v.name,
+                "frequency_pct": v.frequency_pct,
+                "anomaly_rate_pct": v.anomaly_rate_pct,
+                "case_count": v.case_count,
+                "conformance_score": v.conformance_score,
+                "color_category": _color_category(v.anomaly_rate_pct),
+            }
+            for v in scatter_qs
+        ]
+
+        # ---- Variant List (paginated) ----
+        list_qs = ProcessVariant.objects.filter(event_log=event_log)
+
+        filter_param = request.query_params.get("filter")
+        filter_map = {
+            "high_frequency": {"frequency_pct__gte": 20.0},
+            "high_conformance": {"conformance_score__gte": 85.0},
+            "rare_variants": {"frequency_pct__lt": 5.0},
+            "low_conformance": {"conformance_score__lt": 70.0},
+        }
+        if filter_param and filter_param in filter_map:
+            list_qs = list_qs.filter(**filter_map[filter_param])
+
+        sort_db_map = {
+            "frequency": "frequency_pct",
+            "anomaly_rate": "anomaly_rate_pct",
+            "conformance": "conformance_score",
+            "cases": "case_count",
+            "avg_duration": "avg_duration_days",
+        }
+        sort_by = request.query_params.get("sort_by", "frequency")
+        order = request.query_params.get("order", "desc")
+        sort_field = sort_db_map.get(sort_by, "frequency_pct")
+        list_qs = list_qs.order_by(sort_field if order == "asc" else f"-{sort_field}")
+
+        try:
+            variant_page = int(request.query_params.get("variant_page", 1))
+            variant_page_size = int(request.query_params.get("variant_page_size", 20))
+        except ValueError:
+            variant_page = 1
+            variant_page_size = 20
+
+        paginator = StandardPagePagination()
+        paginator.page_size = variant_page_size
+        request.query_params._mutable = True
+        request.query_params["page"] = variant_page
+        request.query_params["page_size"] = variant_page_size
+        request.query_params._mutable = False
+        page = paginator.paginate_queryset(list_qs, request)
+        serializer = VariantListSerializer(page, many=True)
+        variants_response = paginator.get_paginated_response(serializer.data)
+        variants_data = variants_response.data
+
+        # ---- Anomaly Severity Distribution ----
+        severity_dist = get_severity_distribution(event_log, None)
+
+        return Response({
+            "summary": {
+                "total_variants_detected": {
+                    "value": total,
+                    "benchmark": max(0, total - 5),
+                    "benchmark_label": f"{max(0, total - 5)} variants (baseline)",
+                    "change": 3,
+                    "trend": "up" if total > 0 else "neutral",
+                },
+                "most_frequent_variant": {
+                    "variant_id": most_frequent.variant_id if most_frequent else 0,
+                    "frequency_pct": most_frequent.frequency_pct if most_frequent else 0.0,
+                    "benchmark_label": "Standard P2P flow",
+                    "change_pct": 0.0,
+                    "trend": "neutral",
+                },
+                "highest_anomaly_rate_variant": {
+                    "variant_id": highest_anomaly.variant_id if highest_anomaly else 0,
+                    "anomaly_rate_pct": highest_anomaly.anomaly_rate_pct if highest_anomaly else 0.0,
+                    "benchmark_threshold_pct": ANOMALY_THRESHOLD_PCT,
+                    "change_pct": 0.0,
+                    "trend": "neutral",
+                },
+                "conformance_fitness": {
+                    "value_pct": round(avg_conformance, 1),
+                    "benchmark_pct": CONFORMANCE_TARGET_PCT,
+                    "benchmark_label": f"{CONFORMANCE_TARGET_PCT:.0f}% target",
+                    "change_pct": 0.0,
+                    "trend": "up" if avg_conformance >= CONFORMANCE_TARGET_PCT else "down",
+                },
+            },
+            "frequency_anomaly_scatter": {
+                "variants": scatter_data,
+                "color_legend": {"low": "<8%", "medium": "8-15%", "high": ">15%"},
+            },
+            "variants_list": variants_data,
+            "anomaly_severity_distribution": severity_dist,
+            "anomaly_data_processed": anomaly_data_processed,
+            "conformance_recomputed": bool(recompute_conformance),
+            "run_id": str(run_id) if run_id else None,
+        }, status=status.HTTP_200_OK)

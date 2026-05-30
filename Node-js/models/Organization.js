@@ -41,7 +41,11 @@ const organizationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  members: [memberSchema]
+  members: [memberSchema],
+  lastRunId: {
+    type: String,
+    default: null
+  }
 }, {
   timestamps: true
 });

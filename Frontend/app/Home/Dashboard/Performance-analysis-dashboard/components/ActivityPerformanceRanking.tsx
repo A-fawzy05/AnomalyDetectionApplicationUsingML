@@ -61,19 +61,19 @@ const ActivityPerformanceRanking = ({ rankings, onActivitySelect }: ActivityPerf
                   <div>
                     <p className="font-sans text-xs text-text-secondary">Avg</p>
                     <p className="font-serif text-sm font-semibold text-text-primary">
-                      {activity.avgDuration}d
+                      {activity.avgDuration.toFixed(3)}d
                     </p>
                   </div>
                   <div>
                     <p className="font-sans text-xs text-text-secondary">Min-Max</p>
                     <p className="font-sans text-sm text-text-primary">
-                      {activity.minDuration}d - {activity.maxDuration}d
+                      {activity.minDuration.toFixed(3)}d – {activity.maxDuration.toFixed(3)}d
                     </p>
                   </div>
                   <div>
                     <p className="font-sans text-xs text-text-secondary">Variance</p>
                     <p className={`font-serif text-sm font-semibold ${getVarianceColor(activity.variance)}`}>
-                      {activity.variance}%
+                      {activity.variance.toFixed(3)}%
                     </p>
                   </div>
                 </div>

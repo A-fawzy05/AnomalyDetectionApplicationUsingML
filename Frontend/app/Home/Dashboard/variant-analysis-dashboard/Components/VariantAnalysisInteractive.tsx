@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
@@ -11,51 +11,91 @@ import VariantComparisonTable from './VariantComparisonTable';
 import VariantAnomalyBreakdown from './VariantAnomalyBreakdown';
 import VariantFilters from './VariantFilters';
 import { useToast } from '@/components/UI/Toast';
+import { readSubteamContext, updateSubteamContextIds, SubteamContext } from '@/services/team.service';
+import { Upload } from 'lucide-react';
+import Icon from '@/components/UI/AppIcon';
 
-interface VariantMetric {
-  label: string;
-  value: string;
-  subValue: string;
-  trend: 'up' | 'down' | 'neutral';
-  trendValue: string;
-  icon: string;
-  benchmark?: string;
-}
+interface VariantMetric { label: string; value: string; subValue: string; trend: 'up' | 'down' | 'neutral'; trendValue: string; icon: string; benchmark?: string; }
+interface VariantDataPoint { id: string; name: string; frequency: number; anomalyRate: number; caseCount: number; }
+interface VariantRow { id: string; variantPath: string; frequency: number; anomalyRate: number; conformanceScore: number; caseCount: number; avgDuration: string; activities: string[]; }
+interface AnomalySeverity { severity: string; count: number; percentage: number; color: string; }
 
-interface VariantDataPoint {
-  id: string;
-  name: string;
-  frequency: number;
-  anomalyRate: number;
-  caseCount: number;
-}
+const DJANGO  = 'http://localhost:8000/api/v1';
+const FASTAPI = 'http://localhost:8001/api/v1';
+const NODEJS  = 'http://localhost:3001/api/teams';
 
-interface VariantRow {
-  id: string;
-  variantPath: string;
-  frequency: number;
-  anomalyRate: number;
-  conformanceScore: number;
-  caseCount: number;
-  avgDuration: string;
-  activities: string[];
-}
+function mapAggToState(agg: any) {
+  const sm = agg.summary || {};
 
-interface AnomalySeverity {
-  severity: string;
-  count: number;
-  percentage: number;
-  color: string;
-}
+  const metrics: VariantMetric[] = [
+    {
+      label: 'Total Variants Detected',
+      value: String(sm.total_variants_detected?.value ?? 0),
+      subValue: `Across all cases`,
+      trend: (sm.total_variants_detected?.trend || 'neutral') as 'up' | 'down' | 'neutral',
+      trendValue: `+${sm.total_variants_detected?.change ?? 0}`,
+      icon: 'AdjustmentsHorizontalIcon',
+      benchmark: sm.total_variants_detected?.benchmark_label || '',
+    },
+    {
+      label: 'Most Frequent Variant',
+      value: `V-${sm.most_frequent_variant?.variant_id ?? 0}`,
+      subValue: `${(sm.most_frequent_variant?.frequency_pct ?? 0).toFixed(1)}% of all cases`,
+      trend: (sm.most_frequent_variant?.trend || 'neutral') as 'up' | 'down' | 'neutral',
+      trendValue: `${sm.most_frequent_variant?.change_pct ?? 0}%`,
+      icon: 'ChartBarIcon',
+      benchmark: sm.most_frequent_variant?.benchmark_label || '',
+    },
+    {
+      label: 'Highest Anomaly Rate',
+      value: `V-${sm.highest_anomaly_rate_variant?.variant_id ?? 0}`,
+      subValue: `${(sm.highest_anomaly_rate_variant?.anomaly_rate_pct ?? 0).toFixed(1)}% anomaly rate`,
+      trend: (sm.highest_anomaly_rate_variant?.trend || 'neutral') as 'up' | 'down' | 'neutral',
+      trendValue: `${sm.highest_anomaly_rate_variant?.change_pct ?? 0}%`,
+      icon: 'ExclamationTriangleIcon',
+      benchmark: `${sm.highest_anomaly_rate_variant?.benchmark_threshold_pct ?? 15}% threshold`,
+    },
+    {
+      label: 'Conformance Fitness',
+      value: `${(sm.conformance_fitness?.value_pct ?? 0).toFixed(1)}%`,
+      subValue: 'Overall process conformance',
+      trend: (sm.conformance_fitness?.trend || 'neutral') as 'up' | 'down' | 'neutral',
+      trendValue: `${sm.conformance_fitness?.change_pct ?? 0}%`,
+      icon: 'CheckCircleIcon',
+      benchmark: sm.conformance_fitness?.benchmark_label || '85% target',
+    },
+  ];
 
-interface Alert {
-  id: string;
-  type: 'critical' | 'warning' | 'info';
-  title: string;
-  message: string;
-  timestamp: Date;
-  actionLabel?: string;
-  onAction?: () => void;
+  const scatter = (agg.frequency_anomaly_scatter || {}).variants || [];
+  const chartData: VariantDataPoint[] = scatter.map((v: any) => ({
+    id: `V-${v.variant_id}`,
+    name: v.name || `Variant ${v.variant_id}`,
+    frequency: v.frequency_pct ?? 0,
+    anomalyRate: v.anomaly_rate_pct ?? 0,
+    caseCount: v.case_count ?? 0,
+  }));
+
+  const listResults = (agg.variants_list || {}).results || [];
+  const variants: VariantRow[] = listResults.map((v: any) => ({
+    id: `V-${v.variant_id}`,
+    variantPath: v.name || `Variant ${v.variant_id}`,
+    frequency: v.frequency_pct ?? 0,
+    anomalyRate: v.anomaly_rate_pct ?? 0,
+    conformanceScore: v.conformance_score ?? 0,
+    caseCount: v.case_count ?? 0,
+    avgDuration: `${(v.avg_duration_days ?? 0).toFixed(1)} days`,
+    activities: v.activity_sequence || [],
+  }));
+
+  const sevDist = (agg.anomaly_severity_distribution || {}).severity_distribution || [];
+  const severityData: AnomalySeverity[] = sevDist.map((s: any) => ({
+    severity: (s.level || '').charAt(0).toUpperCase() + (s.level || '').slice(1),
+    count: s.count ?? 0,
+    percentage: s.pct ?? 0,
+    color: s.color || '#888',
+  }));
+
+  return { metrics, chartData, variants, severityData };
 }
 
 const VariantAnalysisInteractive = () => {
@@ -63,213 +103,254 @@ const VariantAnalysisInteractive = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  const [freqMin, setFreqMin] = useState(0);
+  const [freqMax, setFreqMax] = useState(100);
+  const [conformanceThreshold, setConformanceThreshold] = useState(0);
+
+  const [ctx, setCtx] = useState<SubteamContext | null>(null);
+  const [dashData, setDashData] = useState<ReturnType<typeof mapAggToState> | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     setIsHydrated(true);
+    const c = readSubteamContext();
+    setCtx(c);
+    if (c?.djangoEventLogId) fetchData(c);
   }, []);
 
-  if (!isHydrated) {
-    return <DashboardLoadingScreen dashboardName="Variant Analysis Dashboard" isLoading={true} />;
+  async function fetchData(c: SubteamContext) {
+    setDataLoading(true);
+    try {
+      // Optionally get anomaly_cases from FastAPI to enrich the aggregate call
+      let anomalyCases: any[] = [];
+      if (c.fastApiRunId) {
+        try {
+          const faRes = await fetch(`${FASTAPI}/runs/${c.fastApiRunId}`);
+          if (faRes.ok) {
+            const faData = await faRes.json();
+            anomalyCases = faData.anomaly_cases || [];
+          }
+        } catch { /* proceed without anomaly enrichment */ }
+      }
+
+      const body: any = {
+        event_log_id: c.djangoEventLogId,
+        ...(c.fastApiRunId ? { run_id: c.fastApiRunId } : {}),
+        ...(anomalyCases.length ? { anomaly_data: { anomaly_cases: anomalyCases } } : {}),
+      };
+
+      const res = await fetch(`${DJANGO}/variants/aggregate/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setDashData(mapAggToState(json));
+    } catch (err) {
+      showToast({ type: 'error', title: 'Failed to load data', message: err instanceof Error ? err.message : 'Unknown error' });
+    } finally {
+      setDataLoading(false);
+    }
   }
 
-  const mockMetrics: VariantMetric[] = [
-    {
-      label: 'Total Variants Detected',
-      value: '47',
-      subValue: 'Across 12,847 cases',
-      trend: 'up',
-      trendValue: '+3',
-      icon: 'AdjustmentsHorizontalIcon',
-      benchmark: '42 variants (baseline)'
-    },
-    {
-      label: 'Most Frequent Variant',
-      value: 'V-001',
-      subValue: '28.5% of all cases',
-      trend: 'neutral',
-      trendValue: '0%',
-      icon: 'ChartBarIcon',
-      benchmark: 'Standard P2P flow'
-    },
-    {
-      label: 'Highest Anomaly Rate',
-      value: 'V-003',
-      subValue: '18.5% anomaly rate',
-      trend: 'down',
-      trendValue: '-2.3%',
-      icon: 'ExclamationTriangleIcon',
-      benchmark: '15% threshold'
-    },
-    {
-      label: 'Conformance Fitness',
-      value: '87.2%',
-      subValue: 'Overall process conformance',
-      trend: 'up',
-      trendValue: '+1.8%',
-      icon: 'CheckCircleIcon',
-      benchmark: '85% target'
+  async function handleUpload(file: File) {
+    if (!ctx) return;
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const faForm = new FormData();
+      faForm.append('file', file);
+      const faRes = await fetch(`${FASTAPI}/analyze`, { method: 'POST', body: faForm });
+      if (!faRes.ok) throw new Error(`FastAPI error: ${(await faRes.json()).detail || faRes.status}`);
+      const faData = await faRes.json();
+      const fastApiRunId: string = faData.run_id;
+
+      const djForm = new FormData();
+      djForm.append('file', file);
+      djForm.append('name', `${ctx.subteamName} — ${file.name}`);
+      const djRes = await fetch(`${DJANGO}/event-logs/upload/`, { method: 'POST', body: djForm });
+      if (!djRes.ok) throw new Error(`Django error: ${(await djRes.json()).message || djRes.status}`);
+      const djData = await djRes.json();
+      const djangoEventLogId: string = djData.id;
+
+      await fetch(`${NODEJS}/${ctx.teamId}/subteams/${ctx.subteamId}/data`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ fastApiRunId, djangoEventLogId }),
+      });
+
+      updateSubteamContextIds(fastApiRunId, djangoEventLogId);
+      const newCtx = { ...ctx, fastApiRunId, djangoEventLogId };
+      setCtx(newCtx);
+      await fetchData(newCtx);
+      showToast({ type: 'success', title: 'Dataset uploaded', message: 'Variant analysis complete' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      setUploadError(msg);
+      showToast({ type: 'error', title: 'Upload failed', message: msg });
+    } finally {
+      setIsUploading(false);
     }
-  ];
-
-  const mockChartData: VariantDataPoint[] = [
-    { id: 'V-001', name: 'Standard Flow', frequency: 28.5, anomalyRate: 5.2, caseCount: 3661 },
-    { id: 'V-002', name: 'Express Processing', frequency: 18.3, anomalyRate: 8.7, caseCount: 2351 },
-    { id: 'V-003', name: 'Manual Approval', frequency: 12.7, anomalyRate: 18.5, caseCount: 1632 },
-    { id: 'V-004', name: 'Three-Way Match', frequency: 15.2, anomalyRate: 6.3, caseCount: 1953 },
-    { id: 'V-005', name: 'Expedited Payment', frequency: 8.9, anomalyRate: 12.1, caseCount: 1143 },
-    { id: 'V-006', name: 'Budget Approval', frequency: 6.4, anomalyRate: 15.8, caseCount: 822 },
-    { id: 'V-007', name: 'Multi-Level Review', frequency: 4.8, anomalyRate: 9.4, caseCount: 617 },
-    { id: 'V-008', name: 'Direct Payment', frequency: 3.2, anomalyRate: 7.6, caseCount: 411 },
-    { id: 'V-009', name: 'Contract-Based', frequency: 2.0, anomalyRate: 4.9, caseCount: 257 }
-  ];
-
-  const mockVariants: VariantRow[] = [
-    {
-      id: 'V-001',
-      variantPath: 'Standard Flow',
-      frequency: 28.5,
-      anomalyRate: 5.2,
-      conformanceScore: 94.8,
-      caseCount: 3661,
-      avgDuration: '4.2 days',
-      activities: ['Create PR', 'Approve PR', 'Create PO', 'Receive Goods', 'Match Invoice', 'Process Payment']
-    },
-    {
-      id: 'V-002',
-      variantPath: 'Express Processing',
-      frequency: 18.3,
-      anomalyRate: 8.7,
-      conformanceScore: 91.3,
-      caseCount: 2351,
-      avgDuration: '2.1 days',
-      activities: ['Create PR', 'Fast-Track Approval', 'Create PO', 'Receive Goods', 'Process Payment']
-    },
-    {
-      id: 'V-003',
-      variantPath: 'Manual Approval',
-      frequency: 12.7,
-      anomalyRate: 18.5,
-      conformanceScore: 81.5,
-      caseCount: 1632,
-      avgDuration: '8.7 days',
-      activities: ['Create PR', 'Manual Review', 'Budget Check', 'Approve PR', 'Create PO', 'Receive Goods', 'Match Invoice', 'Manual Approval', 'Process Payment']
-    },
-    {
-      id: 'V-004',
-      variantPath: 'Three-Way Match',
-      frequency: 15.2,
-      anomalyRate: 6.3,
-      conformanceScore: 93.7,
-      caseCount: 1953,
-      avgDuration: '5.1 days',
-      activities: ['Create PR', 'Approve PR', 'Create PO', 'Receive Goods', 'Three-Way Match', 'Process Payment']
-    },
-    {
-      id: 'V-005',
-      variantPath: 'Expedited Payment',
-      frequency: 8.9,
-      anomalyRate: 12.1,
-      conformanceScore: 87.9,
-      caseCount: 1143,
-      avgDuration: '1.8 days',
-      activities: ['Create PR', 'Emergency Approval', 'Create PO', 'Expedited Payment']
-    },
-    {
-      id: 'V-006',
-      variantPath: 'Budget Approval',
-      frequency: 6.4,
-      anomalyRate: 15.8,
-      conformanceScore: 84.2,
-      caseCount: 822,
-      avgDuration: '7.3 days',
-      activities: ['Create PR', 'Budget Review', 'Finance Approval', 'Approve PR', 'Create PO', 'Receive Goods', 'Match Invoice', 'Process Payment']
-    }
-  ];
-
-  const mockSeverityData: AnomalySeverity[] = [
-    { severity: 'Critical', count: 187, percentage: 32.5, color: '#ef4444' },
-    { severity: 'High', count: 243, percentage: 42.2, color: '#f59e0b' },
-    { severity: 'Medium', count: 98, percentage: 17.0, color: '#eab308' },
-    { severity: 'Low', count: 48, percentage: 8.3, color: '#10b981' }
-  ];
+  }
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    if (ctx?.djangoEventLogId) fetchData(ctx);
+    else { setIsLoading(true); setTimeout(() => setIsLoading(false), 800); }
   };
 
-  const handleVariantClick = (variantId: string) => {
-    setSelectedVariant(variantId);
-  };
+  if (!isHydrated) return <DashboardLoadingScreen dashboardName="Variant Analysis Dashboard" isLoading={true} variant="variant" />;
 
-  const handleVariantSelect = (variantId: string) => {
-    setSelectedVariant(variantId);
-  };
+  if (dataLoading) return <DashboardLoadingScreen dashboardName="Variant Analysis Dashboard" isLoading={true} variant="variant" />;
 
-  const handleFrequencyFilterChange = (min: number, max: number) => {
-    console.log('Frequency filter changed:', min, max);
-  };
+  if (!ctx?.djangoEventLogId || !dashData) {
+    return (
+      <div className="min-h-screen bg-bg-primary text-text-primary">
+        <NavigationSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
+          <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading} />
+          <div className="p-8 flex flex-col items-center justify-center min-h-[70vh]">
+            <div className="w-full max-w-md">
+              <p className="text-sm font-medium text-text-secondary mb-1">{ctx?.subteamName || 'Subteam'}</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-6">Variant Analysis Dashboard</h2>
+              <div className="bg-bg-secondary border border-border-primary rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Upload size={20} className="text-text-secondary" strokeWidth={1.5} />
+                  <p className="text-sm font-medium text-text-primary">Upload a dataset to begin</p>
+                </div>
+                <p className="text-xs text-text-secondary mb-5">Accepts CSV, XES, or OCEL2 JSON event log files.</p>
+                <input ref={fileInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading || !ctx} className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium bg-nobel-gold text-bg-primary hover:bg-yellow-500 disabled:opacity-50 transition-colors">
+                  {isUploading ? <><span className="w-4 h-4 border-2 border-bg-primary/30 border-t-bg-primary rounded-full animate-spin" /> Uploading…</> : <><Upload size={15} /> Choose File</>}
+                </button>
+                {!ctx && <p className="mt-3 text-xs text-red-400">No subteam selected. Return to the profile page and select a subteam.</p>}
+                {uploadError && <p className="mt-3 text-xs text-red-400">{uploadError}</p>}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
-  const handleConformanceThresholdChange = (threshold: number) => {
-    console.log('Conformance threshold changed:', threshold);
-  };
+  const { metrics, chartData, variants, severityData } = dashData!;
 
-  const handleDateRangeChange = (range: string) => {
-    console.log('Date range changed:', range);
-  };
+  // Apply client-side filters from VariantFilters panel
+  const filteredVariants = variants.filter(v =>
+    v.frequency >= freqMin &&
+    v.frequency <= freqMax &&
+    v.conformanceScore >= conformanceThreshold
+  );
+  const filteredChartData = chartData.filter(v =>
+    v.frequency >= freqMin &&
+    v.frequency <= freqMax
+  );
 
-  const selectedVariantData = mockVariants.find(v => v.id === selectedVariant);
+  const selectedVariantData = filteredVariants.find(v => v.id === selectedVariant);
   const totalCases = selectedVariantData?.caseCount || 0;
-  const anomalousCases = Math.round(totalCases * ((selectedVariantData?.anomalyRate || 0) / 100));
+  const anomalousCases = totalCases > 0
+    ? Math.round(totalCases * ((selectedVariantData?.anomalyRate || 0) / 100))
+    : 0;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
-      <NavigationSidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />
-
+      <NavigationSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
-        <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading} />
-
+        <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading || dataLoading} />
         <div className="p-8">
-          <div className="mb-8 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
-            <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">
-              Variant Analysis Dashboard
-            </h1>
-            <p className="font-sans text-base text-text-secondary">
-              Process deviation analysis and conformance tracking for audit and optimization
-            </p>
+          <div className="mb-8 flex items-start justify-between opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
+            <div>
+              <p className="text-sm text-text-secondary mb-1">{ctx.subteamName}</p>
+              <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">Variant Analysis</h1>
+              <p className="font-sans text-base text-text-secondary">Process deviation analysis and conformance tracking</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <input ref={fileInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary disabled:opacity-50">
+                {isUploading ? <span className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" /> : <Upload size={15} />}
+                Replace
+              </button>
+            </div>
           </div>
 
           <div className="space-y-6">
-            <VariantOverviewCards metrics={mockMetrics} />
-
+            <VariantOverviewCards metrics={metrics} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <VariantFrequencyChart
-                  data={mockChartData}
-                  onVariantClick={handleVariantClick}
-                />
+                <VariantFrequencyChart data={filteredChartData} onVariantClick={setSelectedVariant} />
 
-                <VariantComparisonTable
-                  variants={mockVariants}
-                  onVariantSelect={handleVariantSelect}
-                />
+                {/* Quick Insights — shown directly under the bubble chart */}
+                <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
+                  <h3 className="font-serif text-base font-semibold text-text-primary mb-3">Quick Insights</h3>
+                  {!selectedVariant ? (
+                    <p className="font-sans text-sm text-text-secondary">
+                      Click a bubble or a row in the table below to see insights for that variant.
+                    </p>
+                  ) : (() => {
+                    const anomalyRate = totalCases > 0 ? (anomalousCases / totalCases) * 100 : 0;
+                    const THRESHOLD = 15;
+                    const insights: { bg: string; icon: string; iconCls: string; title: string; body: string }[] = [];
+
+                    if (anomalyRate > THRESHOLD) {
+                      insights.push({
+                        bg: 'bg-amber-50 dark:bg-amber-900/20',
+                        icon: 'ExclamationTriangleIcon',
+                        iconCls: 'text-amber-600 dark:text-amber-400',
+                        title: 'High Anomaly Concentration',
+                        body: `This variant has a ${anomalyRate.toFixed(1)}% anomaly rate, exceeding the ${THRESHOLD}% threshold.`,
+                      });
+                    } else {
+                      insights.push({
+                        bg: 'bg-blue-50 dark:bg-blue-900/20',
+                        icon: 'ChartBarIcon',
+                        iconCls: 'text-nobel-gold',
+                        title: 'Process Optimization Opportunity',
+                        body: `Anomaly rate is ${anomalyRate.toFixed(1)}% — within the ${THRESHOLD}% threshold. Consider reviewing for further efficiency improvements.`,
+                      });
+                    }
+
+                    if (totalCases === 0) {
+                      insights.length = 0;
+                      insights.push({
+                        bg: 'bg-bg-primary/50',
+                        icon: 'InformationCircleIcon',
+                        iconCls: 'text-text-secondary',
+                        title: 'No Case Data',
+                        body: 'No cases are linked to this variant yet.',
+                      });
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        {insights.map((ins, i) => (
+                          <div key={i} className={`flex items-start gap-3 p-3 rounded-lg ${ins.bg}`}>
+                            <Icon name={ins.icon as any} size={18} className={`${ins.iconCls} flex-shrink-0 mt-0.5`} />
+                            <div>
+                              <p className="font-sans text-sm font-medium text-text-primary mb-0.5">{ins.title}</p>
+                              <p className="font-sans text-xs text-text-secondary">{ins.body}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <VariantComparisonTable variants={filteredVariants} onVariantSelect={setSelectedVariant} />
               </div>
-
               <div className="space-y-6">
                 <VariantFilters
-                  onFrequencyFilterChange={handleFrequencyFilterChange}
-                  onConformanceThresholdChange={handleConformanceThresholdChange}
-                  onDateRangeChange={handleDateRangeChange}
+                  onFrequencyFilterChange={(min, max) => { setFreqMin(min); setFreqMax(max); setSelectedVariant(null); }}
+                  onConformanceThresholdChange={(t) => { setConformanceThreshold(t); setSelectedVariant(null); }}
+                  onDateRangeChange={() => {}}
                 />
-
                 <VariantAnomalyBreakdown
                   selectedVariant={selectedVariant}
-                  severityData={mockSeverityData}
+                  severityData={severityData}
                   totalCases={totalCases}
                   anomalousCases={anomalousCases}
                 />
@@ -278,8 +359,7 @@ const VariantAnalysisInteractive = () => {
           </div>
         </div>
       </main>
-
-      {isLoading && <LoadingStateManager isLoading={true} type="inline" />}
+      {(isLoading || dataLoading) && <LoadingStateManager isLoading={true} type="inline" />}
     </div>
   );
 };

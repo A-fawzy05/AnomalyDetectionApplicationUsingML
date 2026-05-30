@@ -102,7 +102,7 @@ const ProcessFlowDiagram = ({ activities, onActivityClick }: ProcessFlowDiagramP
                     )}
                     <div className="text-right">
                       <p className="font-serif text-lg font-semibold text-text-primary">
-                        {activity.avgDuration}d
+                        {activity.avgDuration.toFixed(3)}d
                       </p>
                       <p className="font-sans text-xs text-text-secondary">
                         Avg Duration

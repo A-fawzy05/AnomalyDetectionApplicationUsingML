@@ -64,6 +64,16 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  telegramPhone: {
+    type: String,
+    trim: true,
+    default: null
+  },
+  telegramChatId: {
+    type: String,
+    trim: true,
+    default: null
   }
 }, {
   timestamps: true

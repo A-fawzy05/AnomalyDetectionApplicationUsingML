@@ -14,5 +14,6 @@ router.get('/google', AuthController.googleAuth);
 
 // Protected routes
 router.get('/profile', authenticate, AuthController.getProfile);
+router.patch('/profile/telegram', authenticate, AuthController.updateTelegramPhone);
 
 module.exports = router;

@@ -1,120 +1,315 @@
 'use client';
 
+type DashboardVariant = 'anomaly' | 'performance' | 'variant';
+
 interface DashboardLoadingScreenProps {
   dashboardName?: string;
   isLoading?: boolean;
+  variant?: DashboardVariant;
 }
 
-const DashboardLoadingScreen = ({ 
-  dashboardName = 'Dashboard',
-  isLoading = false 
-}: DashboardLoadingScreenProps) => {
-  if (!isLoading) {
-    return null;
-  }
+// ─── Primitives ───────────────────────────────────────────────────────────────
 
-  return (
-    <div className="fixed inset-0 z-modal bg-background/95 backdrop-blur-sm flex items-center justify-center transition-colors duration-300">
-      <div className="flex flex-col items-center gap-8 max-w-md mx-auto text-center">
-        {/* Animated Dashboard Icon */}
-        <div className="relative">
-          <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 animate-pulse">
-            <svg
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-16 h-16 text-primary-foreground"
-            >
-              <rect x="6" y="6" width="36" height="36" rx="4" stroke="currentColor" strokeWidth="2" />
-              <line x1="6" y1="14" x2="42" y2="14" stroke="currentColor" strokeWidth="2" />
-              <line x1="14" y1="14" x2="14" y2="42" stroke="currentColor" strokeWidth="2" />
-              <rect x="20" y="20" width="8" height="8" rx="1" fill="currentColor" className="text-primary-foreground/80" />
-              <rect x="32" y="20" width="8" height="8" rx="1" fill="currentColor" className="text-primary-foreground/60" />
-              <rect x="20" y="32" width="8" height="8" rx="1" fill="currentColor" className="text-primary-foreground/40" />
-            </svg>
+const Sk = ({ className = '' }: { className?: string }) => (
+  <div className={`animate-pulse rounded bg-border-primary/40 ${className}`} />
+);
+
+const KPICardSk = () => (
+  <div className="bg-bg-secondary border border-border-primary rounded-xl p-5 space-y-3">
+    <div className="flex items-center justify-between">
+      <Sk className="w-24 h-3" />
+      <Sk className="w-8 h-8 rounded-lg" />
+    </div>
+    <Sk className="w-28 h-7" />
+    <div className="flex items-center gap-2">
+      <Sk className="w-4 h-4 rounded-full" />
+      <Sk className="w-20 h-3" />
+    </div>
+    <Sk className="w-full h-8 rounded-lg" />
+  </div>
+);
+
+const SidebarSk = () => (
+  <div className="fixed top-0 left-0 h-full w-60 bg-bg-secondary border-r border-border-primary flex flex-col p-4 gap-3 z-20">
+    <div className="flex items-center gap-3 px-2 mb-4">
+      <Sk className="w-8 h-8 rounded-lg" />
+      <Sk className="w-28 h-4" />
+    </div>
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} className="flex items-center gap-3 px-2 py-2">
+        <Sk className="w-5 h-5 rounded" />
+        <Sk className="w-32 h-3" />
+      </div>
+    ))}
+    <div className="mt-auto flex items-center gap-3 px-2 py-2">
+      <Sk className="w-8 h-8 rounded-full" />
+      <div className="space-y-1.5">
+        <Sk className="w-24 h-3" />
+        <Sk className="w-16 h-2" />
+      </div>
+    </div>
+  </div>
+);
+
+const HeaderSk = () => (
+  <div className="h-16 bg-bg-secondary border-b border-border-primary flex items-center justify-between px-6">
+    <div className="flex items-center gap-4">
+      <Sk className="w-32 h-4" />
+    </div>
+    <div className="flex items-center gap-3">
+      <Sk className="w-28 h-8 rounded-lg" />
+      <Sk className="w-8 h-8 rounded-full" />
+      <Sk className="w-8 h-8 rounded-full" />
+    </div>
+  </div>
+);
+
+const TableBodySk = ({ rows = 7, cols = 7 }: { rows?: number; cols?: number }) => (
+  <>
+    <div className="flex gap-3 px-4 py-3 border-b border-border-primary">
+      {Array.from({ length: cols }).map((_, i) => (
+        <Sk key={i} className="h-3 rounded" style={{ flex: 1 }} />
+      ))}
+    </div>
+    {Array.from({ length: rows }).map((_, i) => (
+      <div key={i} className="flex gap-3 px-4 py-3 border-b border-border-primary/40">
+        {Array.from({ length: cols }).map((__, j) => (
+          <Sk key={j} className="h-3 rounded" style={{ flex: 1 }} />
+        ))}
+      </div>
+    ))}
+  </>
+);
+
+// ─── Anomaly Skeleton ─────────────────────────────────────────────────────────
+
+const AnomalySkeleton = () => (
+  <div className="p-8">
+    <div className="mb-8 space-y-2">
+      <Sk className="w-72 h-8 rounded-lg" />
+      <Sk className="w-96 h-4" />
+    </div>
+
+    {/* 4 KPI cards */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {Array.from({ length: 4 }).map((_, i) => <KPICardSk key={i} />)}
+    </div>
+
+    {/* Main 12-col grid */}
+    <div className="grid grid-cols-12 gap-6">
+      {/* Filter panel – 3 cols */}
+      <div className="col-span-3 bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
+        <Sk className="w-20 h-4 rounded mb-2" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Sk className="w-4 h-4 rounded" />
+            <Sk className="h-3 rounded" style={{ flex: 1 }} />
           </div>
-          
-          {/* Orbiting dots */}
-          <div className="absolute inset-0 w-24 h-24">
-            {[0, 120, 240].map((rotation, i) => (
-              <div
-                key={i}
-                className="absolute w-3 h-3 rounded-full bg-primary animate-spin"
-                style={{
-                  top: '50%',
-                  left: '50%',
-                  transform: `translate(-50%, -50%) rotate(${rotation}deg) translateY(-40px)`,
-                  animationDelay: `${i * 150}ms`,
-                  animationDuration: '2s'
-                }}
-              />
-            ))}
+        ))}
+        <div className="pt-3 border-t border-border-primary space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Sk className="w-4 h-4 rounded" />
+              <Sk className="h-3 rounded" style={{ flex: 1 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Anomaly table – 6 cols */}
+      <div className="col-span-6 bg-bg-secondary border border-border-primary rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-border-primary">
+          <Sk className="w-28 h-4" />
+          <Sk className="w-16 h-3" />
+        </div>
+        <TableBodySk rows={8} cols={7} />
+        <div className="flex items-center justify-between p-4 border-t border-border-primary">
+          <Sk className="w-32 h-3" />
+          <div className="flex gap-2">
+            <Sk className="w-20 h-8 rounded-lg" />
+            <Sk className="w-16 h-8 rounded-lg" />
+          </div>
+        </div>
+      </div>
+
+      {/* Right column – 3 cols */}
+      <div className="col-span-3 space-y-6">
+        {/* Feed */}
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
+          <Sk className="w-32 h-4 mb-2" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex gap-3 py-2 border-b border-border-primary/40">
+              <Sk className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Sk className="w-full h-3" />
+                <Sk className="w-3/4 h-3" />
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Process map */}
+        <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
+          <Sk className="w-32 h-4 mb-2" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Sk key={i} className="w-full h-9 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Performance Skeleton ─────────────────────────────────────────────────────
+
+const PerformanceSkeleton = () => (
+  <div className="p-8">
+    <div className="mb-8 flex items-start justify-between">
+      <div className="space-y-2">
+        <Sk className="w-80 h-8 rounded-lg" />
+        <Sk className="w-96 h-4" />
+      </div>
+      <div className="flex gap-3">
+        <Sk className="w-36 h-9 rounded-lg" />
+        <Sk className="w-32 h-9 rounded-lg" />
+      </div>
+    </div>
+
+    {/* 6 KPI cards – 3 cols */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      {Array.from({ length: 6 }).map((_, i) => <KPICardSk key={i} />)}
+    </div>
+
+    {/* Chart + Rankings */}
+    <div className="grid grid-cols-12 gap-6 mb-8">
+      <div className="col-span-8 bg-bg-secondary border border-border-primary rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <Sk className="w-40 h-4" />
+          <Sk className="w-24 h-7 rounded-lg" />
+        </div>
+        <Sk className="w-full h-56 rounded-xl" />
+      </div>
+      <div className="col-span-4 bg-bg-secondary border border-border-primary rounded-xl p-5 space-y-4">
+        <Sk className="w-40 h-4 mb-2" />
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="flex justify-between">
+              <Sk className="w-32 h-3" />
+              <Sk className="w-12 h-3" />
+            </div>
+            <Sk className="w-full h-2 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Process flow diagram */}
+    <div className="mb-8 bg-bg-secondary border border-border-primary rounded-xl p-5">
+      <Sk className="w-40 h-4 mb-5" />
+      <div className="flex items-center gap-3 overflow-x-hidden py-1">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 shrink-0">
+            <Sk className="w-28 h-16 rounded-xl" />
+            {i < 7 && <Sk className="w-8 h-2 rounded" />}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Table */}
+    <div className="bg-bg-secondary border border-border-primary rounded-xl overflow-hidden">
+      <div className="p-4 border-b border-border-primary">
+        <Sk className="w-48 h-4" />
+      </div>
+      <TableBodySk rows={6} cols={7} />
+    </div>
+  </div>
+);
+
+// ─── Variant Skeleton ─────────────────────────────────────────────────────────
+
+const VariantSkeleton = () => (
+  <div className="p-8">
+    <div className="mb-8 space-y-2">
+      <Sk className="w-72 h-8 rounded-lg" />
+      <Sk className="w-80 h-4" />
+    </div>
+
+    <div className="space-y-6">
+      {/* 4 overview cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {Array.from({ length: 4 }).map((_, i) => <KPICardSk key={i} />)}
+      </div>
+
+      {/* Main 3-col grid */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Left 2/3: chart + table */}
+        <div className="col-span-2 space-y-6">
+          <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
+            <Sk className="w-40 h-4 mb-5" />
+            <Sk className="w-full h-52 rounded-xl" />
+          </div>
+          <div className="bg-bg-secondary border border-border-primary rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-border-primary">
+              <Sk className="w-44 h-4" />
+            </div>
+            <TableBodySk rows={6} cols={6} />
           </div>
         </div>
 
-        {/* Loading Content */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="font-serif text-2xl font-semibold text-foreground">
-              Loading {dashboardName}
-            </h2>
-            <p className="font-sans text-muted-foreground">
-              Preparing your dashboard with real-time data and analytics
-            </p>
+        {/* Right 1/3: filters + breakdown */}
+        <div className="space-y-6">
+          <div className="bg-bg-secondary border border-border-primary rounded-xl p-5 space-y-4">
+            <Sk className="w-24 h-4" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Sk className="w-24 h-3" />
+                <Sk className="w-full h-4 rounded-full" />
+              </div>
+            ))}
           </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full animate-pulse" 
-                 style={{ 
-                   width: '70%',
-                   animation: 'shimmer 2s infinite ease-in-out'
-                 }} />
-          </div>
-
-          {/* Loading Steps */}
-          <div className="space-y-2 text-left">
-            {[
-              'Fetching real-time data',
-              'Analyzing patterns',
-              'Generating insights',
-              'Preparing visualization'
-            ].map((step, index) => (
-              <div 
-                key={index}
-                className="flex items-center gap-3 text-sm text-muted-foreground"
-                style={{
-                  opacity: 0.3 + (index * 0.2),
-                  animation: `fadeInUp 0.5s ease-out ${index * 200}ms forwards`
-                }}
-              >
-                <div className={`w-2 h-2 rounded-full ${
-                  index === 0 ? 'bg-primary animate-pulse' : 'bg-muted/50'
-                }`} />
-                <span>{step}</span>
+          <div className="bg-bg-secondary border border-border-primary rounded-xl p-5 space-y-4">
+            <Sk className="w-36 h-4" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Sk className="w-3 h-3 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex justify-between">
+                    <Sk className="w-20 h-3" />
+                    <Sk className="w-8 h-3" />
+                  </div>
+                  <Sk className="w-full h-2 rounded-full" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+    </div>
+  </div>
+);
 
-      <style jsx>{`
-        @keyframes shimmer {
-          0%, 100% { width: 30%; }
-          50% { width: 90%; }
-        }
-        
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: inherit;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const DashboardLoadingScreen = ({
+  isLoading = false,
+  variant,
+}: DashboardLoadingScreenProps) => {
+  if (!isLoading) return null;
+
+  const ContentSkeleton =
+    variant === 'performance'
+      ? PerformanceSkeleton
+      : variant === 'variant'
+      ? VariantSkeleton
+      : AnomalySkeleton;
+
+  return (
+    <div className="min-h-screen bg-bg-primary text-text-primary">
+      <SidebarSk />
+      <main className="ml-60">
+        <HeaderSk />
+        <ContentSkeleton />
+      </main>
     </div>
   );
 };

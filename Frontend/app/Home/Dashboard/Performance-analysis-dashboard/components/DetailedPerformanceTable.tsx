@@ -23,10 +23,13 @@ interface DetailedPerformanceTableProps {
 type SortField = 'caseId' | 'supplier' | 'cycleTime' | 'activities' | 'bottlenecks';
 type SortDirection = 'asc' | 'desc';
 
+const PAGE_SIZE = 10;
+
 const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTableProps) => {
   const [sortField, setSortField] = useState<SortField>('cycleTime');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -35,6 +38,12 @@ const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTab
       setSortField(field);
       setSortDirection('desc');
     }
+    setCurrentPage(1);
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
   const getStatusColor = (status: string) => {
@@ -76,6 +85,9 @@ const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTab
     }
   });
 
+  const totalPages = Math.max(1, Math.ceil(sortedCases.length / PAGE_SIZE));
+  const pagedCases = sortedCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
     <button
       onClick={() => handleSort(field)}
@@ -111,7 +123,7 @@ const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTab
               type="text"
               placeholder="Search cases..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-lg bg-bg-primary border border-border-primary text-text-primary font-sans text-sm focus:outline-none focus:ring-2 focus:ring-nobel-gold"
             />
           </div>
@@ -144,7 +156,7 @@ const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTab
             </tr>
           </thead>
           <tbody>
-            {sortedCases.map((caseItem) => (
+            {pagedCases.map((caseItem) => (
               <tr
                 key={caseItem.caseId}
                 onClick={() => onCaseClick(caseItem.caseId)}
@@ -200,8 +212,53 @@ const DetailedPerformanceTable = ({ cases, onCaseClick }: DetailedPerformanceTab
 
       <div className="mt-4 flex items-center justify-between">
         <span className="font-sans text-sm text-text-secondary">
-          Showing {sortedCases.length} of {cases.length} cases
+          {sortedCases.length === 0
+            ? 'No cases found'
+            : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, sortedCases.length)} of ${sortedCases.length} cases`}
         </span>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2.5 py-1 rounded text-xs border border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) =>
+                p === '…' ? (
+                  <span key={`e-${i}`} className="px-1.5 text-xs text-text-secondary">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p as number)}
+                    className={`px-2.5 py-1 rounded text-xs border transition-colors ${
+                      currentPage === p
+                        ? 'border-nobel-gold bg-nobel-gold/10 text-nobel-gold'
+                        : 'border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-primary'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2.5 py-1 rounded text-xs border border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

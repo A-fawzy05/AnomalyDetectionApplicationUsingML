@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: List[str] = ["*"]
 
+    # Kafka
+    KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
+
     # App Settings
     LOG_LEVEL: str = "INFO"
     MAX_UPLOAD_SIZE_MB: int = 200

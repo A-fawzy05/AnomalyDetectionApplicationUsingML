@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NavigationSidebar from '@/components/common/NavigationSidebar';
 import GlobalHeader from '@/components/common/GlobalHeader';
 import LoadingStateManager from '@/components/common/LoadingStateManager';
@@ -13,69 +13,96 @@ import ProcessFlowDiagram from './ProcessFlowDiagram';
 import ActivityPerformanceRanking from './ActivityPerformanceRanking';
 import DetailedPerformanceTable from './DetailedPerformanceTable';
 import { useToast } from '@/components/UI/Toast';
+import { readSubteamContext, updateSubteamContextIds, SubteamContext } from '@/services/team.service';
+import { Upload } from 'lucide-react';
 
-interface Alert {
-  id: string;
-  type: 'critical' | 'warning' | 'info';
-  title: string;
-  message: string;
-  timestamp: Date;
-  actionLabel?: string;
-  onAction?: () => void;
-}
+interface ProcessStage { id: string; label: string; count: number; }
+interface KPIData { title: string; value: string; unit: string; change: number; changeLabel: string; icon: string; trend: 'up' | 'down' | 'neutral'; }
+interface ChartDataPoint { period: string; cycleTime: number; throughput: number; benchmark: number; }
+interface ProcessActivity { id: string; name: string; avgDuration: number; isBottleneck: boolean; severity: 'high' | 'medium' | 'low'; caseCount: number; }
+interface ActivityRanking { id: string; name: string; avgDuration: number; minDuration: number; maxDuration: number; variance: number; recommendation: string; }
+interface PerformanceCase { caseId: string; supplier: string; startDate: string; endDate: string; cycleTime: number; activities: number; bottlenecks: number; status: 'completed' | 'in-progress' | 'delayed'; slaCompliance: boolean; }
 
-interface ProcessStage {
-  id: string;
-  label: string;
-  count: number;
-}
+const DJANGO = 'http://localhost:8000/api/v1';
+const FASTAPI = 'http://localhost:8001/api/v1';
+const NODEJS  = 'http://localhost:3001/api/teams';
 
-interface KPIData {
-  title: string;
-  value: string;
-  unit: string;
-  change: number;
-  changeLabel: string;
-  icon: string;
-  trend: 'up' | 'down' | 'neutral';
-}
+function mapAggToState(agg: any) {
+  const sm = agg.summary || {};
+  const kpiKeys = [
+    ['average_cycle_time',       'Average Cycle Time',       'ClockIcon'],
+    ['processing_throughput',    'Processing Throughput',    'ArrowTrendingUpIcon'],
+    ['bottleneck_count',         'Bottleneck Count',         'ExclamationTriangleIcon'],
+    ['sla_compliance_rate',      'SLA Compliance Rate',      'CheckCircleIcon'],
+    ['activity_duration_variance','Activity Duration Variance','ChartBarIcon'],
+    ['process_efficiency_score', 'Process Efficiency Score', 'SparklesIcon'],
+  ] as const;
 
-interface ChartDataPoint {
-  period: string;
-  cycleTime: number;
-  throughput: number;
-  benchmark: number;
-}
+  const kpiData: KPIData[] = kpiKeys.map(([key, title, icon]) => {
+    const k = sm[key] || {};
+    return {
+      title,
+      value: String(k.value ?? 0),
+      unit: k.unit || '',
+      change: k.change_pct ?? 0,
+      changeLabel: 'vs last period',
+      icon,
+      trend: (k.trend || 'neutral') as 'up' | 'down' | 'neutral',
+    };
+  });
 
-interface ProcessActivity {
-  id: string;
-  name: string;
-  avgDuration: number;
-  isBottleneck: boolean;
-  severity: 'high' | 'medium' | 'low';
-  caseCount: number;
-}
+  const wt = (agg.weekly_trends || {}).weeks || [];
+  const chartData: ChartDataPoint[] = wt.map((w: any) => ({
+    period: w.label || '',
+    cycleTime: w.avg_cycle_time_days ?? 0,
+    throughput: w.throughput_cases ?? 0,
+    benchmark: w.industry_benchmark_days ?? 20,
+  }));
 
-interface ActivityRanking {
-  id: string;
-  name: string;
-  avgDuration: number;
-  minDuration: number;
-  maxDuration: number;
-  variance: number;
-  recommendation: string;
-}
+  const pf = (agg.process_flow || {}).stages || [];
+  const processActivities: ProcessActivity[] = pf.map((s: any) => ({
+    id: `act-${s.step}`,
+    name: s.activity_name || '',
+    avgDuration: s.avg_duration_days ?? 0,
+    isBottleneck: !!s.is_bottleneck,
+    severity: (s.severity || 'low') as 'high' | 'medium' | 'low',
+    caseCount: s.cases_processed ?? 0,
+  }));
 
-interface PerformanceCase {
-  caseId: string;
-  supplier: string;
-  startDate: string;
-  endDate: string;
-  cycleTime: number;
-  activities: number;
-  bottlenecks: number;
-  status: 'completed' | 'in-progress' | 'delayed';
-  slaCompliance: boolean;
+  const ar = (agg.activity_ranking || {}).activities || [];
+  const activityRankings: ActivityRanking[] = ar.map((a: any) => ({
+    id: `act-${a.rank}`,
+    name: a.activity_name || '',
+    avgDuration: a.avg_duration_days ?? 0,
+    minDuration: a.min_duration_days ?? 0,
+    maxDuration: a.max_duration_days ?? 0,
+    variance: a.variance_pct ?? 0,
+    recommendation: a.recommendation || '',
+  }));
+
+  const cases = (agg.cases || {}).results || [];
+  const performanceCases: PerformanceCase[] = cases.map((c: any) => ({
+    caseId: c.case_id || '',
+    supplier: c.supplier || 'Unknown',
+    startDate: c.period_start || '',
+    endDate: c.period_end || 'In Progress',
+    cycleTime: c.cycle_time_days ?? 0,
+    activities: c.activity_count ?? 0,
+    bottlenecks: c.bottleneck_count ?? 0,
+    status: (() => {
+      const s = (c.status || '').toLowerCase();
+      if (s === 'completed') return 'completed';
+      if (s === 'delayed') return 'delayed';
+      return 'in-progress';
+    })() as PerformanceCase['status'],
+    slaCompliance: !c.sla_breached,
+  }));
+
+  const processStages: ProcessStage[] = processActivities.map((a, i) => ({
+    id: a.id, label: a.name, count: a.caseCount,
+  }));
+
+  return { kpiData, chartData, processActivities, activityRankings, performanceCases, processStages };
 }
 
 const PerformanceAnalysisInteractive = () => {
@@ -85,411 +112,161 @@ const PerformanceAnalysisInteractive = () => {
   const [isIndustryBenchmark, setIsIndustryBenchmark] = useState(true);
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
 
+  const [ctx, setCtx] = useState<SubteamContext | null>(null);
+  const [dashData, setDashData] = useState<ReturnType<typeof mapAggToState> | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showToast } = useToast();
+
   useEffect(() => {
     setIsHydrated(true);
+    const c = readSubteamContext();
+    setCtx(c);
+    if (c?.djangoEventLogId) fetchData(c.djangoEventLogId);
   }, []);
 
-  if (!isHydrated) {
-    return <DashboardLoadingScreen dashboardName="Performance Analysis Dashboard" isLoading={true} />;
+  async function fetchData(eventLogId: string) {
+    setDataLoading(true);
+    try {
+      const res = await fetch(`${DJANGO}/performance/aggregate/?event_log_id=${eventLogId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setDashData(mapAggToState(json));
+    } catch (err) {
+      showToast({ type: 'error', title: 'Failed to load data', message: err instanceof Error ? err.message : 'Unknown error' });
+    } finally {
+      setDataLoading(false);
+    }
   }
 
-  const processStages: ProcessStage[] = [
-    { id: 'requisition', label: 'Purchase Requisition', count: 1247 },
-    { id: 'approval', label: 'Approval Workflow', count: 1189 },
-    { id: 'po-creation', label: 'PO Creation', count: 1156 },
-    { id: 'goods-receipt', label: 'Goods Receipt', count: 1098 },
-    { id: 'invoice-processing', label: 'Invoice Processing', count: 1045 },
-    { id: 'payment', label: 'Payment Processing', count: 987 }
-  ];
+  async function handleUpload(file: File) {
+    if (!ctx) return;
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const faForm = new FormData();
+      faForm.append('file', file);
+      const faRes = await fetch(`${FASTAPI}/analyze`, { method: 'POST', body: faForm });
+      if (!faRes.ok) throw new Error(`FastAPI error: ${(await faRes.json()).detail || faRes.status}`);
+      const faData = await faRes.json();
+      const fastApiRunId: string = faData.run_id;
 
-  const kpiData: KPIData[] = [
-    {
-      title: 'Average Cycle Time',
-      value: '18.5',
-      unit: 'days',
-      change: -12.3,
-      changeLabel: 'vs last month',
-      icon: 'ClockIcon',
-      trend: 'down'
-    },
-    {
-      title: 'Processing Throughput',
-      value: '1,247',
-      unit: 'cases/month',
-      change: 8.7,
-      changeLabel: 'vs last month',
-      icon: 'ArrowTrendingUpIcon',
-      trend: 'up'
-    },
-    {
-      title: 'Bottleneck Count',
-      value: '23',
-      unit: 'activities',
-      change: -15.2,
-      changeLabel: 'vs last month',
-      icon: 'ExclamationTriangleIcon',
-      trend: 'down'
-    },
-    {
-      title: 'SLA Compliance Rate',
-      value: '87.3',
-      unit: '%',
-      change: 5.1,
-      changeLabel: 'vs last month',
-      icon: 'CheckCircleIcon',
-      trend: 'up'
-    },
-    {
-      title: 'Activity Duration Variance',
-      value: '34.2',
-      unit: '%',
-      change: -8.9,
-      changeLabel: 'vs last month',
-      icon: 'ChartBarIcon',
-      trend: 'down'
-    },
-    {
-      title: 'Process Efficiency Score',
-      value: '78.5',
-      unit: '/100',
-      change: 3.4,
-      changeLabel: 'vs last month',
-      icon: 'SparklesIcon',
-      trend: 'up'
+      const djForm = new FormData();
+      djForm.append('file', file);
+      djForm.append('name', `${ctx.subteamName} — ${file.name}`);
+      const djRes = await fetch(`${DJANGO}/event-logs/upload/`, { method: 'POST', body: djForm });
+      if (!djRes.ok) throw new Error(`Django error: ${(await djRes.json()).message || djRes.status}`);
+      const djData = await djRes.json();
+      const djangoEventLogId: string = djData.id;
+
+      await fetch(`${NODEJS}/${ctx.teamId}/subteams/${ctx.subteamId}/data`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ fastApiRunId, djangoEventLogId }),
+      });
+
+      updateSubteamContextIds(fastApiRunId, djangoEventLogId);
+      setCtx(prev => prev ? { ...prev, fastApiRunId, djangoEventLogId } : prev);
+      await fetchData(djangoEventLogId);
+      showToast({ type: 'success', title: 'Dataset uploaded', message: 'Performance analysis complete' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      setUploadError(msg);
+      showToast({ type: 'error', title: 'Upload failed', message: msg });
+    } finally {
+      setIsUploading(false);
     }
-  ];
-
-  const chartData: ChartDataPoint[] = [
-    { period: 'Week 1', cycleTime: 22.3, throughput: 287, benchmark: 20.0 },
-    { period: 'Week 2', cycleTime: 20.8, throughput: 312, benchmark: 20.0 },
-    { period: 'Week 3', cycleTime: 19.2, throughput: 298, benchmark: 20.0 },
-    { period: 'Week 4', cycleTime: 18.5, throughput: 350, benchmark: 20.0 },
-    { period: 'Week 5', cycleTime: 17.9, throughput: 324, benchmark: 20.0 },
-    { period: 'Week 6', cycleTime: 18.1, throughput: 289, benchmark: 20.0 },
-    { period: 'Week 7', cycleTime: 17.4, throughput: 341, benchmark: 20.0 }
-  ];
-
-  const processActivities: ProcessActivity[] = [
-    {
-      id: 'act-1',
-      name: 'Purchase Requisition Creation',
-      avgDuration: 2.3,
-      isBottleneck: false,
-      severity: 'low',
-      caseCount: 1247
-    },
-    {
-      id: 'act-2',
-      name: 'Budget Approval',
-      avgDuration: 4.8,
-      isBottleneck: false,
-      severity: 'medium',
-      caseCount: 1189
-    },
-    {
-      id: 'act-3',
-      name: 'Manager Approval',
-      avgDuration: 12.5,
-      isBottleneck: true,
-      severity: 'high',
-      caseCount: 1189
-    },
-    {
-      id: 'act-4',
-      name: 'Purchase Order Creation',
-      avgDuration: 1.9,
-      isBottleneck: false,
-      severity: 'low',
-      caseCount: 1156
-    },
-    {
-      id: 'act-5',
-      name: 'Goods Receipt Verification',
-      avgDuration: 8.7,
-      isBottleneck: true,
-      severity: 'medium',
-      caseCount: 1098
-    },
-    {
-      id: 'act-6',
-      name: 'Invoice Processing',
-      avgDuration: 15.3,
-      isBottleneck: true,
-      severity: 'high',
-      caseCount: 1045
-    },
-    {
-      id: 'act-7',
-      name: 'Three-Way Matching',
-      avgDuration: 6.2,
-      isBottleneck: false,
-      severity: 'medium',
-      caseCount: 1045
-    },
-    {
-      id: 'act-8',
-      name: 'Payment Authorization',
-      avgDuration: 3.4,
-      isBottleneck: false,
-      severity: 'low',
-      caseCount: 987
-    }
-  ];
-
-  const activityRankings: ActivityRanking[] = [
-    {
-      id: 'act-6',
-      name: 'Invoice Processing',
-      avgDuration: 15.3,
-      minDuration: 8.2,
-      maxDuration: 28.7,
-      variance: 67.3,
-      recommendation: 'Implement automated invoice validation to reduce manual review time by 40%'
-    },
-    {
-      id: 'act-3',
-      name: 'Manager Approval',
-      avgDuration: 12.5,
-      minDuration: 2.1,
-      maxDuration: 35.8,
-      variance: 94.2,
-      recommendation: 'Set up approval delegation rules and automated escalation for pending requests'
-    },
-    {
-      id: 'act-5',
-      name: 'Goods Receipt Verification',
-      avgDuration: 8.7,
-      minDuration: 4.3,
-      maxDuration: 18.9,
-      variance: 56.8,
-      recommendation: 'Deploy mobile scanning solution for warehouse teams to expedite verification'
-    },
-    {
-      id: 'act-7',
-      name: 'Three-Way Matching',
-      avgDuration: 6.2,
-      minDuration: 3.8,
-      maxDuration: 12.4,
-      variance: 45.2,
-      recommendation: 'Increase matching tolerance thresholds for low-value items to reduce exceptions'
-    },
-    {
-      id: 'act-2',
-      name: 'Budget Approval',
-      avgDuration: 4.8,
-      minDuration: 2.9,
-      maxDuration: 9.1,
-      variance: 38.7,
-      recommendation: 'Pre-approve recurring purchases within budget limits to streamline workflow'
-    }
-  ];
-
-  const performanceCases: PerformanceCase[] = [
-    {
-      caseId: 'PO-2026-00847',
-      supplier: 'Global Tech Supplies Inc',
-      startDate: '2026-01-15',
-      endDate: '2026-02-01',
-      cycleTime: 17,
-      activities: 8,
-      bottlenecks: 2,
-      status: 'completed',
-      slaCompliance: true
-    },
-    {
-      caseId: 'PO-2026-00846',
-      supplier: 'Office Essentials Ltd',
-      startDate: '2026-01-14',
-      endDate: '2026-02-02',
-      cycleTime: 19,
-      activities: 8,
-      bottlenecks: 1,
-      status: 'completed',
-      slaCompliance: true
-    },
-    {
-      caseId: 'PO-2026-00845',
-      supplier: 'Industrial Equipment Corp',
-      startDate: '2026-01-12',
-      endDate: 'In Progress',
-      cycleTime: 21,
-      activities: 6,
-      bottlenecks: 3,
-      status: 'in-progress',
-      slaCompliance: false
-    },
-    {
-      caseId: 'PO-2026-00844',
-      supplier: 'Packaging Solutions Group',
-      startDate: '2026-01-10',
-      endDate: '2026-01-28',
-      cycleTime: 18,
-      activities: 8,
-      bottlenecks: 1,
-      status: 'completed',
-      slaCompliance: true
-    },
-    {
-      caseId: 'PO-2026-00843',
-      supplier: 'Digital Services Provider',
-      startDate: '2026-01-08',
-      endDate: 'In Progress',
-      cycleTime: 25,
-      activities: 7,
-      bottlenecks: 4,
-      status: 'delayed',
-      slaCompliance: false
-    },
-    {
-      caseId: 'PO-2026-00842',
-      supplier: 'Manufacturing Parts Co',
-      startDate: '2026-01-05',
-      endDate: '2026-01-20',
-      cycleTime: 15,
-      activities: 8,
-      bottlenecks: 0,
-      status: 'completed',
-      slaCompliance: true
-    },
-    {
-      caseId: 'PO-2026-00841',
-      supplier: 'Logistics & Transport Ltd',
-      startDate: '2026-01-03',
-      endDate: '2026-01-25',
-      cycleTime: 22,
-      activities: 8,
-      bottlenecks: 2,
-      status: 'completed',
-      slaCompliance: false
-    },
-    {
-      caseId: 'PO-2026-00840',
-      supplier: 'Safety Equipment Suppliers',
-      startDate: '2025-12-28',
-      endDate: '2026-01-18',
-      cycleTime: 21,
-      activities: 8,
-      bottlenecks: 1,
-      status: 'completed',
-      slaCompliance: true
-    }
-  ];
+  }
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    if (ctx?.djangoEventLogId) fetchData(ctx.djangoEventLogId);
+    else { setIsLoading(true); setTimeout(() => setIsLoading(false), 800); }
   };
 
-  const handleStageToggle = (stageId: string) => {
-    setSelectedStages(prev => 
-      prev.includes(stageId) 
-        ? prev.filter(id => id !== stageId)
-        : [...prev, stageId]
+  if (!isHydrated) return <DashboardLoadingScreen dashboardName="Performance Analysis Dashboard" isLoading={true} variant="performance" />;
+
+  if (dataLoading) return <DashboardLoadingScreen dashboardName="Performance Analysis Dashboard" isLoading={true} variant="performance" />;
+
+  if (!ctx?.djangoEventLogId || !dashData) {
+    return (
+      <div className="min-h-screen bg-bg-primary text-text-primary">
+        <NavigationSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
+        <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
+          <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading} />
+          <div className="p-8 flex flex-col items-center justify-center min-h-[70vh]">
+            <div className="w-full max-w-md">
+              <p className="text-sm font-medium text-text-secondary mb-1">{ctx?.subteamName || 'Subteam'}</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-6">Performance Analysis Dashboard</h2>
+              <div className="bg-bg-secondary border border-border-primary rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Upload size={20} className="text-text-secondary" strokeWidth={1.5} />
+                  <p className="text-sm font-medium text-text-primary">Upload a dataset to begin</p>
+                </div>
+                <p className="text-xs text-text-secondary mb-5">Accepts CSV, XES, or OCEL2 JSON event log files.</p>
+                <input ref={fileInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading || !ctx} className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium bg-nobel-gold text-bg-primary hover:bg-yellow-500 disabled:opacity-50 transition-colors">
+                  {isUploading ? <><span className="w-4 h-4 border-2 border-bg-primary/30 border-t-bg-primary rounded-full animate-spin" /> Uploading…</> : <><Upload size={15} /> Choose File</>}
+                </button>
+                {!ctx && <p className="mt-3 text-xs text-red-400">No subteam selected. Return to the profile page and select a subteam.</p>}
+                {uploadError && <p className="mt-3 text-xs text-red-400">{uploadError}</p>}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     );
-  };
+  }
 
-  const handleClearStages = () => {
-    setSelectedStages([]);
-  };
-
-  const handleActivityClick = (activityId: string) => {
-    console.log('Activity clicked:', activityId);
-  };
-
-  const handleActivitySelect = (activityId: string) => {
-    console.log('Activity selected:', activityId);
-  };
-
-  const handleCaseClick = (caseId: string) => {
-    console.log('Case clicked:', caseId);
-  };
+  const { kpiData, chartData, processActivities, activityRankings, performanceCases, processStages } = dashData!;
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary transition-colors duration-300">
-      <NavigationSidebar 
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />
-      
+      <NavigationSidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
-        <GlobalHeader 
-          onRefresh={handleRefresh}
-          isLoading={isLoading}
-        />
-        
+        <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading || dataLoading} />
         <div className="p-8">
-          {/* Page Header */}
           <div className="mb-8 opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">
-                  Performance Analysis Dashboard
-                </h1>
-                <p className="font-sans text-base text-text-secondary">
-                  Identify workflow bottlenecks and optimize P2P cycle times through comprehensive performance metrics
-                </p>
+                <p className="text-sm text-text-secondary mb-1">{ctx.subteamName}</p>
+                <h1 className="font-serif text-3xl font-semibold text-text-primary mb-2">Performance Analysis</h1>
+                <p className="font-sans text-base text-text-secondary">Identify workflow bottlenecks and optimize P2P cycle times</p>
               </div>
-              
               <div className="flex items-center gap-3">
-                <ProcessStageFilter
-                  stages={processStages}
-                  selectedStages={selectedStages}
-                  onStageToggle={handleStageToggle}
-                  onClearAll={handleClearStages}
-                />
-                <BenchmarkToggle
-                  isIndustryBenchmark={isIndustryBenchmark}
-                  onToggle={() => setIsIndustryBenchmark(!isIndustryBenchmark)}
-                />
+                <input ref={fileInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary disabled:opacity-50">
+                  {isUploading ? <span className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" /> : <Upload size={15} />}
+                  Replace
+                </button>
+                <ProcessStageFilter stages={processStages} selectedStages={selectedStages} onStageToggle={id => setSelectedStages(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])} onClearAll={() => setSelectedStages([])} />
+                <BenchmarkToggle isIndustryBenchmark={isIndustryBenchmark} onToggle={() => setIsIndustryBenchmark(!isIndustryBenchmark)} />
               </div>
             </div>
           </div>
 
-          {/* KPI Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {kpiData.map((kpi, index) => (
-              <PerformanceKPICard key={index} {...kpi} delay={index * 100} />
-            ))}
+            {kpiData.map((kpi, i) => <PerformanceKPICard key={i} {...kpi} delay={i * 100} />)}
           </div>
 
-          {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-            {/* Cycle Time Trend Chart */}
             <div className="lg:col-span-8">
-              <CycleTimeTrendChart 
-                data={chartData}
-                isIndustryBenchmark={isIndustryBenchmark}
-              />
+              <CycleTimeTrendChart data={chartData} isIndustryBenchmark={isIndustryBenchmark} />
             </div>
-
-            {/* Activity Performance Ranking */}
             <div className="lg:col-span-4">
-              <ActivityPerformanceRanking
-                rankings={activityRankings}
-                onActivitySelect={handleActivitySelect}
-              />
+              <ActivityPerformanceRanking rankings={activityRankings} onActivitySelect={() => {}} />
             </div>
           </div>
 
-          {/* Process Flow Diagram */}
           <div className="mb-8">
-            <ProcessFlowDiagram
-              activities={processActivities}
-              onActivityClick={handleActivityClick}
-            />
+            <ProcessFlowDiagram activities={processActivities} onActivityClick={() => {}} />
           </div>
 
-          {/* Detailed Performance Table */}
-          <DetailedPerformanceTable
-            cases={performanceCases}
-            onCaseClick={handleCaseClick}
-          />
+          <DetailedPerformanceTable cases={performanceCases} onCaseClick={() => {}} />
         </div>
       </main>
-
-      {isLoading && <LoadingStateManager isLoading={true} type="overlay" />}
+      {(isLoading || dataLoading) && <LoadingStateManager isLoading={true} type="inline" />}
     </div>
   );
 };

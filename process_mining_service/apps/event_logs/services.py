@@ -94,18 +94,27 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
 
     rows = []
 
-    # Support OCEL 2.0 structure
     events = ocel_data.get("events", {})
     objects = ocel_data.get("objects", {})
 
-    # Build object attributes lookup
+    # Build object attributes + type lookup
     obj_attrs: dict = {}
+    obj_types: dict = {}
     if isinstance(objects, dict):
         for obj_id, obj_data in objects.items():
-            obj_attrs[obj_id] = obj_data.get("attributes", {})
+            raw = obj_data.get("attributes", {})
+            if isinstance(raw, list):
+                raw = {a.get("name", ""): a.get("value", "") for a in raw if isinstance(a, dict)}
+            obj_attrs[obj_id] = raw
+            obj_types[obj_id] = obj_data.get("type", "")
     elif isinstance(objects, list):
         for obj in objects:
-            obj_attrs[obj.get("id", "")] = obj.get("attributes", {})
+            oid = obj.get("id", "")
+            raw = obj.get("attributes", {})
+            if isinstance(raw, list):
+                raw = {a.get("name", ""): a.get("value", "") for a in raw if isinstance(a, dict)}
+            obj_attrs[oid] = raw
+            obj_types[oid] = obj.get("type", "")
 
     if isinstance(events, dict):
         event_iter = events.items()
@@ -115,36 +124,61 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     for evt_id, evt in event_iter:
-        activity = evt.get("activity") or evt.get("ocel:activity", "Unknown")
-        timestamp_raw = evt.get("timestamp") or evt.get("ocel:timestamp", "")
+        # OCEL2.0 uses "type" for activity and "time" for timestamp
+        activity = (
+            evt.get("type")
+            or evt.get("activity")
+            or evt.get("ocel:activity", "Unknown")
+        )
+        timestamp_raw = (
+            evt.get("time")
+            or evt.get("timestamp")
+            or evt.get("ocel:timestamp", "")
+        )
+
+        # Resource: top-level or inside attributes list
+        resource = evt.get("resource", "")
+        if not resource:
+            for attr in evt.get("attributes", []):
+                if isinstance(attr, dict) and attr.get("name", "").lower() == "resource":
+                    resource = str(attr.get("value", ""))
+                    break
+
         related_objs = evt.get("relationships", evt.get("ocel:omap", []))
 
-        # Find a purchase order object to use as the case_id
         case_id = evt_id
         supplier = ""
         if isinstance(related_objs, list):
             for rel in related_objs:
-                if isinstance(rel, dict):
-                    obj_id = rel.get("objectId") or rel.get("id", "")
-                else:
-                    obj_id = rel
-                attrs = obj_attrs.get(obj_id, {})
-                if isinstance(attrs, list):
-                    attrs = {a.get("name", ""): a.get("value", "") for a in attrs if isinstance(a, dict)}
-                if "Purchase Order" in str(obj_id) or "PO" in str(obj_id):
-                    case_id = str(obj_id)
-                if "supplier" in str(attrs).lower():
-                    supplier = attrs.get("supplier") or attrs.get("Supplier", "")
+                obj_id = rel.get("objectId") or rel.get("id", "") if isinstance(rel, dict) else rel
+                obj_id_str = str(obj_id)
+                obj_type_str = str(obj_types.get(obj_id_str, "")).lower()
 
-        rows.append(
-            {
-                "case_id": case_id,
-                "activity": activity,
-                "timestamp": timestamp_raw,
-                "resource": evt.get("resource", ""),
-                "supplier": supplier,
-            }
-        )
+                # Detect purchase order case-insensitively via ID or type
+                if (
+                    "purchase_order" in obj_id_str.lower()
+                    or obj_type_str == "purchase_order"
+                    or obj_type_str == "purchaseorder"
+                    or obj_id_str.lower().startswith("po:")
+                    or "_po_" in obj_id_str.lower()
+                ):
+                    case_id = obj_id_str
+
+                # Extract supplier from object attributes
+                attrs = obj_attrs.get(obj_id_str, {})
+                if isinstance(attrs, dict):
+                    for k, v in attrs.items():
+                        if any(x in str(k).lower() for x in ["vendor", "supplier", "lifnr"]):
+                            supplier = str(v)
+                            break
+
+        rows.append({
+            "case_id": case_id,
+            "activity": activity,
+            "timestamp": timestamp_raw,
+            "resource": resource,
+            "supplier": supplier,
+        })
 
     df = pd.DataFrame(rows)
     if not df.empty:

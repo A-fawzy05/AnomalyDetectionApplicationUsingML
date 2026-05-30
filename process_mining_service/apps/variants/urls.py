@@ -6,6 +6,7 @@ from .views import (
     VariantDetailView,
     AnomalySeverityDistributionView,
     CaseAnomalySeverityPushView,
+    VariantAnalysisAggregatedView,
 )
 
 urlpatterns = [
@@ -31,4 +32,5 @@ urlpatterns = [
         CaseAnomalySeverityPushView.as_view(),
         name="case-anomaly-severity-push",
     ),
+    path("aggregate/", VariantAnalysisAggregatedView.as_view(), name="variant-aggregate"),
 ]
