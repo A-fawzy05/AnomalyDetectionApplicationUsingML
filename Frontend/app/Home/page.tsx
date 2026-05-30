@@ -335,7 +335,7 @@ const App: React.FC = () => {
                         <div className="p-4 bg-bg-primary border border-border-primary rounded-lg">
                             <Zap className="text-nobel-gold mb-2" size={20} />
                             <h4 className="font-bold text-sm mb-1">Real-Time</h4>
-                            <p className="text-xs text-text-secondary">Kafka + Socket.io for live anomaly alerts.</p>
+                            <p className="text-xs text-text-secondary">Live anomaly telemetry with instant dashboard updates.</p>
                         </div>
                         <div className="p-4 bg-bg-primary border border-border-primary rounded-lg">
                             <ShieldAlert className="text-nobel-gold mb-2" size={20} />
