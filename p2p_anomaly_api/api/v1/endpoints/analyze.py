@@ -57,7 +57,13 @@ async def analyze_event_log(
         
         # 4. Ingest file → canonical DataFrame
         ingester = _get_ingester(detected_type)
-        df = ingester.ingest(file.file)
+        try:
+            df = ingester.ingest(file.file)
+        except ValueError as ve:
+            # Ingesters signal bad/malformed input with ValueError. Surface it as
+            # an ingestion error so the endpoint returns 422 (per the API contract)
+            # rather than a generic 500.
+            raise IngestionError(str(ve))
         
         n_cases = df['case_id'].nunique()
         n_events = len(df)

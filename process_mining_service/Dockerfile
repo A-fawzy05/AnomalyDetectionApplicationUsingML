@@ -1,11 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM python:3.11.9-slim
 
-# Prevents Python from writing .pyc files and buffers stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies required by psycopg2 and pm4py
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     gcc \
@@ -15,27 +13,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies first for better layer caching
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
+# Create venv with the exact Python 3.11.9 from the base image and install dependencies
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+ENV PATH="/opt/venv/bin:$PATH"
+
 COPY . .
 
-# Create media directory
 RUN mkdir -p /app/mediafiles /app/staticfiles
-
-# Collect static files
-RUN python manage.py collectstatic --noinput --settings=config.settings.production || true
 
 EXPOSE 8000
 
-# Use gunicorn in production
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "4", \
-     "--timeout", "120", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "config.wsgi:application"]
+# Run migrations then start the dev server
+CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]

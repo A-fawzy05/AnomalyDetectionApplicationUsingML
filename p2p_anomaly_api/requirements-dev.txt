@@ -1,0 +1,10 @@
+# Test-only dependencies for the P2P Anomaly Detection API.
+#
+# The unit, detection and integration suites run with what is already declared in
+# requirements.txt (pytest, pytest-asyncio, httpx, pandas, scikit-learn, tensorflow…).
+# httpx's ASGITransport drives the app directly and the integration fixtures create
+# the DB schema themselves, so no extra runtime test dependency is required.
+
+# Optional: coverage reporting for the evaluation report
+#   pytest --cov=. --cov-report=term-missing
+pytest-cov>=5.0.0

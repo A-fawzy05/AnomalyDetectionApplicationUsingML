@@ -1,0 +1,168 @@
+{
+  "n_cases_evaluated": 45,
+  "n_anomalous_truth": 35,
+  "n_normal_truth": 10,
+  "overall_detection_rate": 0.7429,
+  "primary_type_accuracy": 0.6,
+  "normal_false_positive_rate": 0.0,
+  "per_type": {
+    "Price Mismatch": {
+      "support": 5,
+      "flagged": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0
+    },
+    "Three-Way Match Failure": {
+      "support": 5,
+      "flagged": 6,
+      "true_positive": 1,
+      "false_positive": 5,
+      "false_negative": 4,
+      "recall": 0.2,
+      "precision": 0.1667,
+      "f1": 0.1818
+    },
+    "Maverick Buying": {
+      "support": 5,
+      "flagged": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0
+    },
+    "Temporal Delay": {
+      "support": 5,
+      "flagged": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0
+    },
+    "Duplicate Invoice": {
+      "support": 5,
+      "flagged": 0,
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 5,
+      "recall": 0.0,
+      "precision": 0.0,
+      "f1": 0.0
+    },
+    "Unauthorized Vendor": {
+      "support": 5,
+      "flagged": 8,
+      "true_positive": 5,
+      "false_positive": 3,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 0.625,
+      "f1": 0.7692
+    },
+    "Quantity Variance": {
+      "support": 5,
+      "flagged": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0
+    }
+  },
+  "confusion": {
+    "Normal": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 10
+    },
+    "Price Mismatch": {
+      "Price Mismatch": 5,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 0
+    },
+    "Three-Way Match Failure": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 1,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 4
+    },
+    "Maverick Buying": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 5,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 0
+    },
+    "Temporal Delay": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 5,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 0
+    },
+    "Duplicate Invoice": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 0,
+      "Normal": 5
+    },
+    "Unauthorized Vendor": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 5,
+      "Quantity Variance": 0,
+      "Normal": 0
+    },
+    "Quantity Variance": {
+      "Price Mismatch": 0,
+      "Three-Way Match Failure": 0,
+      "Maverick Buying": 0,
+      "Temporal Delay": 0,
+      "Duplicate Invoice": 0,
+      "Unauthorized Vendor": 0,
+      "Quantity Variance": 5,
+      "Normal": 0
+    }
+  },
+  "severity_counts": {
+    "Low": 16,
+    "High": 12,
+    "Medium": 11,
+    "Critical": 6
+  }
+}

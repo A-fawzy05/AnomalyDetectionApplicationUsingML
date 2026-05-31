@@ -58,6 +58,17 @@ const userSchema = new mongoose.Schema({
       default: 'member'
     }
   }],
+  teams: [{
+    teamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Team'
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'member'],
+      default: 'member'
+    }
+  }],
   lastLogin: {
     type: Date
   },

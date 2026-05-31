@@ -27,7 +27,7 @@ class TeamController {
       await team.save();
 
       await User.findByIdAndUpdate(req.user.userId, {
-        $push: { organizations: { organizationId: team._id, role: 'admin' } }
+        $push: { teams: { teamId: team._id, role: 'admin' } }
       });
 
       res.status(201).json({
@@ -66,7 +66,7 @@ class TeamController {
       await team.save();
 
       await User.findByIdAndUpdate(req.user.userId, {
-        $push: { organizations: { organizationId: team._id, role: 'member' } }
+        $push: { teams: { teamId: team._id, role: 'member' } }
       });
 
       res.json({
@@ -123,8 +123,8 @@ class TeamController {
         return res.status(403).json({ success: false, message: 'Only the team admin can delete this team' });
 
       await User.updateMany(
-        { 'organizations.organizationId': req.params.id },
-        { $pull: { organizations: { organizationId: req.params.id } } }
+        { 'teams.teamId': req.params.id },
+        { $pull: { teams: { teamId: req.params.id } } }
       );
       await Team.findByIdAndDelete(req.params.id);
 
