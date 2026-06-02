@@ -89,6 +89,9 @@ jobs:
           cache: 'pip'
 
       - name: Run FastAPI Tests
+        working-directory: p2p_anomaly_api
         run: |
-          pip install -r p2p_anomaly_api/requirements.txt pytest
-          pytest
+          pip install -r requirements.txt pytest
+          # Run only the DB-free suites; integration tests need a Postgres
+          # instance that this job does not provision (they auto-skip anyway).
+          pytest -m "unit or detection"
