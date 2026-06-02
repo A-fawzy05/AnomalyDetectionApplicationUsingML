@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import Icon from '@/components/UI/AppIcon';
 
 interface VariantRow {
@@ -140,9 +140,8 @@ const VariantComparisonTable = ({ variants, onVariantSelect }: VariantComparison
           </thead>
           <tbody className="divide-y divide-border-primary">
             {sortedVariants.map((variant) => (
-              <>
+              <Fragment key={variant.id}>
                 <tr
-                  key={variant.id}
                   className={`hover:bg-bg-primary/30 transition-colors duration-200 ${
                     selectedVariants.has(variant.id) ? 'bg-nobel-gold/5' : ''
                   }`}
@@ -224,7 +223,7 @@ const VariantComparisonTable = ({ variants, onVariantSelect }: VariantComparison
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

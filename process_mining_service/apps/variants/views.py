@@ -460,25 +460,34 @@ class VariantAnalysisAggregatedView(APIView):
                 }
                 for case_anomaly in anomaly_data["anomaly_cases"]:
                     case_id_str = case_anomaly.get("case_id")
-                    try:
-                        case = P2PCase.objects.get(case_id=case_id_str)
-                        # Extract flags as flagged_by list
-                        flags = case_anomaly.get("flags", {})
-                        flagged_by = [flag for flag, is_flagged in flags.items() if is_flagged]
-                        # Map severity label to lowercase
-                        severity_label = case_anomaly.get("severity_label", "none")
-                        severity = severity_map.get(severity_label, "none")
-                        CaseAnomalySeverity.objects.update_or_create(
-                            case=case,
-                            defaults={
-                                "severity": severity,
-                                "anomaly_score": case_anomaly.get("severity_score"),
-                                "anomaly_count": 1,  # Each case counted once
-                                "flagged_by": flagged_by,
-                            },
-                        )
-                    except P2PCase.DoesNotExist:
+                    # Scope the lookup to THIS event log. case_id is unique within
+                    # an event log but NOT across uploads (e.g. the OCEL2 test file
+                    # reuses deterministic ids like "purchase_order:test_1"), so an
+                    # unscoped .get() raised MultipleObjectsReturned → HTTP 500.
+                    # .filter().first() can never raise on duplicates.
+                    case = (
+                        P2PCase.objects
+                        .filter(event_log=event_log, case_id=case_id_str)
+                        .first()
+                    )
+                    if case is None:
                         logger.warning({"event": "case_not_found_for_anomaly", "case_id": case_id_str})
+                        continue
+                    # Extract flags as flagged_by list
+                    flags = case_anomaly.get("flags", {})
+                    flagged_by = [flag for flag, is_flagged in flags.items() if is_flagged]
+                    # Map severity label to lowercase
+                    severity_label = case_anomaly.get("severity_label", "none")
+                    severity = severity_map.get(severity_label, "none")
+                    CaseAnomalySeverity.objects.update_or_create(
+                        case=case,
+                        defaults={
+                            "severity": severity,
+                            "anomaly_score": case_anomaly.get("severity_score"),
+                            "anomaly_count": 1,  # Each case counted once
+                            "flagged_by": flagged_by,
+                        },
+                    )
                 anomaly_data_processed = True
                 logger.info({"event": "fastapi_anomaly_data_processed", "event_log_id": event_log_id})
             else:

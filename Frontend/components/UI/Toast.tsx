@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useRef, createContext, useContext, ReactNode } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 interface Toast {
@@ -15,6 +15,8 @@ interface Toast {
 interface ToastContextType {
   toasts: Toast[];
   addToast: (toast: Omit<Toast, 'id'>) => void;
+  /** Alias of addToast — some dashboards call showToast(). Kept in sync below. */
+  showToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -37,12 +39,14 @@ interface ToastProviderProps {
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [counter, setCounter] = useState(0);
+  // Synchronous counter — useState is async/batched, so two toasts fired in the
+  // same tick would both read the same value and collide on `toast-0`. A ref
+  // increments immediately, guaranteeing unique keys.
+  const counterRef = useRef(0);
 
   const addToast = (toast: Omit<Toast, 'id'>) => {
-    const id = `toast-${counter}`;
-    setCounter(prev => prev + 1);
-    
+    const id = `toast-${counterRef.current++}`;
+
     const newToast: Toast = {
       ...toast,
       id,
@@ -82,6 +86,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     <ToastContext.Provider value={{
       toasts,
       addToast,
+      showToast: addToast,
       removeToast,
       markAsRead,
       markAllAsRead,

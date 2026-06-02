@@ -3,7 +3,11 @@ const config = require('../config/env.config');
 
 class EmailService {
   constructor() {
-    this.resend = new Resend(config.RESEND_API_KEY);
+    // The Resend SDK throws at construction if the key is empty/undefined. In CI
+    // (and any environment without a configured key) we fall back to a harmless
+    // placeholder so importing this module never crashes. No network call is made
+    // at construction time; a real send still requires a valid RESEND_API_KEY.
+    this.resend = new Resend(config.RESEND_API_KEY || 're_placeholder_key');
   }
 
   async sendEmailVerificationOTP(email, otp, fullName) {

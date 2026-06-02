@@ -24,43 +24,52 @@ const DJANGO  = 'http://localhost:8000/api/v1';
 const FASTAPI = 'http://localhost:8001/api/v1';
 const NODEJS  = 'http://localhost:3001/api/teams';
 
+// Coerce any API value (number | numeric-string | null | undefined) to a finite
+// number. Without this, a numeric field that arrives as a string would make the
+// `.toFixed()` calls below throw, which lands the whole fetch in the catch block
+// and silently strands the dashboard on the upload screen.
+function num(x: any): number {
+  const n = typeof x === 'number' ? x : parseFloat(x);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function mapAggToState(agg: any) {
   const sm = agg.summary || {};
 
   const metrics: VariantMetric[] = [
     {
       label: 'Total Variants Detected',
-      value: String(sm.total_variants_detected?.value ?? 0),
+      value: String(num(sm.total_variants_detected?.value)),
       subValue: `Across all cases`,
       trend: (sm.total_variants_detected?.trend || 'neutral') as 'up' | 'down' | 'neutral',
-      trendValue: `+${sm.total_variants_detected?.change ?? 0}`,
+      trendValue: `+${num(sm.total_variants_detected?.change)}`,
       icon: 'AdjustmentsHorizontalIcon',
       benchmark: sm.total_variants_detected?.benchmark_label || '',
     },
     {
       label: 'Most Frequent Variant',
-      value: `V-${sm.most_frequent_variant?.variant_id ?? 0}`,
-      subValue: `${(sm.most_frequent_variant?.frequency_pct ?? 0).toFixed(1)}% of all cases`,
+      value: `V-${num(sm.most_frequent_variant?.variant_id)}`,
+      subValue: `${num(sm.most_frequent_variant?.frequency_pct).toFixed(1)}% of all cases`,
       trend: (sm.most_frequent_variant?.trend || 'neutral') as 'up' | 'down' | 'neutral',
-      trendValue: `${sm.most_frequent_variant?.change_pct ?? 0}%`,
+      trendValue: `${num(sm.most_frequent_variant?.change_pct)}%`,
       icon: 'ChartBarIcon',
       benchmark: sm.most_frequent_variant?.benchmark_label || '',
     },
     {
       label: 'Highest Anomaly Rate',
-      value: `V-${sm.highest_anomaly_rate_variant?.variant_id ?? 0}`,
-      subValue: `${(sm.highest_anomaly_rate_variant?.anomaly_rate_pct ?? 0).toFixed(1)}% anomaly rate`,
+      value: `V-${num(sm.highest_anomaly_rate_variant?.variant_id)}`,
+      subValue: `${num(sm.highest_anomaly_rate_variant?.anomaly_rate_pct).toFixed(1)}% anomaly rate`,
       trend: (sm.highest_anomaly_rate_variant?.trend || 'neutral') as 'up' | 'down' | 'neutral',
-      trendValue: `${sm.highest_anomaly_rate_variant?.change_pct ?? 0}%`,
+      trendValue: `${num(sm.highest_anomaly_rate_variant?.change_pct)}%`,
       icon: 'ExclamationTriangleIcon',
-      benchmark: `${sm.highest_anomaly_rate_variant?.benchmark_threshold_pct ?? 15}% threshold`,
+      benchmark: `${num(sm.highest_anomaly_rate_variant?.benchmark_threshold_pct) || 15}% threshold`,
     },
     {
       label: 'Conformance Fitness',
-      value: `${(sm.conformance_fitness?.value_pct ?? 0).toFixed(1)}%`,
+      value: `${num(sm.conformance_fitness?.value_pct).toFixed(1)}%`,
       subValue: 'Overall process conformance',
       trend: (sm.conformance_fitness?.trend || 'neutral') as 'up' | 'down' | 'neutral',
-      trendValue: `${sm.conformance_fitness?.change_pct ?? 0}%`,
+      trendValue: `${num(sm.conformance_fitness?.change_pct)}%`,
       icon: 'CheckCircleIcon',
       benchmark: sm.conformance_fitness?.benchmark_label || '85% target',
     },
@@ -70,28 +79,28 @@ function mapAggToState(agg: any) {
   const chartData: VariantDataPoint[] = scatter.map((v: any) => ({
     id: `V-${v.variant_id}`,
     name: v.name || `Variant ${v.variant_id}`,
-    frequency: v.frequency_pct ?? 0,
-    anomalyRate: v.anomaly_rate_pct ?? 0,
-    caseCount: v.case_count ?? 0,
+    frequency: num(v.frequency_pct),
+    anomalyRate: num(v.anomaly_rate_pct),
+    caseCount: num(v.case_count),
   }));
 
   const listResults = (agg.variants_list || {}).results || [];
   const variants: VariantRow[] = listResults.map((v: any) => ({
     id: `V-${v.variant_id}`,
     variantPath: v.name || `Variant ${v.variant_id}`,
-    frequency: v.frequency_pct ?? 0,
-    anomalyRate: v.anomaly_rate_pct ?? 0,
-    conformanceScore: v.conformance_score ?? 0,
-    caseCount: v.case_count ?? 0,
-    avgDuration: `${(v.avg_duration_days ?? 0).toFixed(1)} days`,
-    activities: v.activity_sequence || [],
+    frequency: num(v.frequency_pct),
+    anomalyRate: num(v.anomaly_rate_pct),
+    conformanceScore: num(v.conformance_score),
+    caseCount: num(v.case_count),
+    avgDuration: `${num(v.avg_duration_days).toFixed(1)} days`,
+    activities: Array.isArray(v.activity_sequence) ? v.activity_sequence : [],
   }));
 
   const sevDist = (agg.anomaly_severity_distribution || {}).severity_distribution || [];
   const severityData: AnomalySeverity[] = sevDist.map((s: any) => ({
     severity: (s.level || '').charAt(0).toUpperCase() + (s.level || '').slice(1),
-    count: s.count ?? 0,
-    percentage: s.pct ?? 0,
+    count: num(s.count),
+    percentage: num(s.pct),
     color: s.color || '#888',
   }));
 
@@ -137,21 +146,48 @@ const VariantAnalysisInteractive = () => {
         } catch { /* proceed without anomaly enrichment */ }
       }
 
-      const body: any = {
-        event_log_id: c.djangoEventLogId,
-        ...(c.fastApiRunId ? { run_id: c.fastApiRunId } : {}),
-        ...(anomalyCases.length ? { anomaly_data: { anomaly_cases: anomalyCases } } : {}),
+      // POST the aggregate request. `includeAnomaly` controls whether we send the
+      // optional FastAPI enrichment payload. Django processes that payload by
+      // looking up each P2PCase by case_id — which can 500 on the backend (e.g.
+      // duplicate case_ids across re-uploaded OCEL2 logs). The enrichment is
+      // optional, so on failure we retry WITHOUT it and still render the
+      // discovered variants rather than stranding the user on the upload screen.
+      const postAggregate = (includeAnomaly: boolean) => {
+        const body: any = { event_log_id: c.djangoEventLogId };
+        if (includeAnomaly) {
+          if (c.fastApiRunId) body.run_id = c.fastApiRunId;
+          if (anomalyCases.length) body.anomaly_data = { anomaly_cases: anomalyCases };
+        }
+        return fetch(`${DJANGO}/variants/aggregate/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
       };
 
-      const res = await fetch(`${DJANGO}/variants/aggregate/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      let res = await postAggregate(true);
+
+      // If the enriched call failed, retry once without the enrichment payload.
+      if (!res.ok && anomalyCases.length) {
+        const detail = await res.text().catch(() => '');
+        console.warn(
+          `Variant aggregate with anomaly_data failed (HTTP ${res.status}). ` +
+          `Retrying without enrichment.`, detail,
+        );
+        res = await postAggregate(false);
+      }
+
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}${detail ? ` — ${detail.slice(0, 300)}` : ''}`);
+      }
+
       const json = await res.json();
       setDashData(mapAggToState(json));
     } catch (err) {
+      // Log the real error — previously this was only surfaced as a toast, which
+      // made a mapping/parse failure look identical to a network failure.
+      console.error('Variant aggregate fetch/map failed:', err);
       showToast({ type: 'error', title: 'Failed to load data', message: err instanceof Error ? err.message : 'Unknown error' });
     } finally {
       setDataLoading(false);
