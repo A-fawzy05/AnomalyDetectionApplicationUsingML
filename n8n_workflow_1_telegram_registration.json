@@ -1,0 +1,138 @@
+{
+  "name": "Workflow 1 – Telegram Phone Registration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "register-telegram",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook – Register Telegram",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Frontend calls POST http://<n8n-host>/webhook/register-telegram\nBody: { \"token\": \"<JWT>\", \"telegramPhone\": \"+201234567890\", \"telegramChatId\": \"123456789\" }"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate inputs\nconst body = $input.first().json.body;\nconst token = body.token;\nconst phone = body.telegramPhone;\nconst chatId = body.telegramChatId;\n\nif (!token) throw new Error('JWT token is required');\nif (!phone || !/^\\+?[0-9]{7,15}$/.test(phone)) {\n  throw new Error('Invalid phone number. Must be 7-15 digits, optional leading +');\n}\nif (!chatId || !/^[0-9]{5,15}$/.test(String(chatId).trim())) {\n  throw new Error('Invalid chat ID. Must be a numeric ID from @userinfobot.');\n}\n\nreturn [{ json: { token, telegramPhone: phone, telegramChatId: String(chatId).trim() } }];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $env.NODEJS_URL }}/api/auth/profile/telegram",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ telegramPhone: $json.telegramPhone, telegramChatId: $json.telegramChatId }) }}",
+        "options": {}
+      },
+      "id": "update-nodejs-profile",
+      "name": "PATCH Node.js – Save Phone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "notes": "Calls PATCH /api/auth/profile/telegram on the Node.js gateway.\nSet env variable NODEJS_URL = http://localhost:3001 (or ngrok URL for cloud n8n)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check Node.js response\nconst response = $input.first().json;\nif (!response.success) {\n  throw new Error('Node.js API error: ' + (response.message || 'Unknown'));\n}\nreturn [{ json: {\n  telegramPhone: $('Validate Input').first().json.telegramPhone,\n  telegramChatId: $('Validate Input').first().json.telegramChatId,\n  savedOk: true\n}}];"
+      },
+      "id": "check-nodejs-response",
+      "name": "Check Node.js Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.telegramChatId }}"
+            },
+            {
+              "name": "text",
+              "value": "=✅ *P2P Insight – Registration Confirmed*\n\nYour Telegram account has been linked to your P2P Insight profile.\n\nYou will receive automated procurement analysis reports here.\n\n_This is an automated message._"
+            },
+            {
+              "name": "parse_mode",
+              "value": "Markdown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-telegram-confirmation",
+      "name": "Send Telegram Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 220],
+      "notes": "Uses the numeric telegramChatId (not phone number) as chat_id — this is now correct."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Telegram account linked successfully.\", \"telegramPhone\": \"{{ $('Validate Input').first().json.telegramPhone }}\" }"
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Frontend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 380]
+    }
+  ],
+  "connections": {
+    "Webhook – Register Telegram": {
+      "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]]
+    },
+    "Validate Input": {
+      "main": [[{ "node": "PATCH Node.js – Save Phone", "type": "main", "index": 0 }]]
+    },
+    "PATCH Node.js – Save Phone": {
+      "main": [[{ "node": "Check Node.js Response", "type": "main", "index": 0 }]]
+    },
+    "Check Node.js Response": {
+      "main": [
+        [
+          { "node": "Send Telegram Confirmation", "type": "main", "index": 0 },
+          { "node": "Respond to Frontend", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["telegram", "registration", "p2p-insight"],
+  "_workflow_notes": {
+    "TELEGRAM_BOT_TOKEN": "Create a bot via @BotFather on Telegram. Copy the token.",
+    "NODEJS_URL": "Set to your Node.js public URL (ngrok or deployed). e.g. https://abc123.ngrok-free.app"
+  }
+}

@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import require_roles, Identity
 from core.config import settings
 from db.repositories import case_repository, phase_repository, run_repository
 from db.session import get_db
@@ -127,6 +128,7 @@ async def generate_report(
     run_id: UUID,
     request: GenerateReportRequest,
     db: AsyncSession = Depends(get_db),
+    identity: Identity = Depends(require_roles("admin", "analyst")),
 ) -> GenerateReportResponse:
 
     run = await run_repository.get_run(db, run_id)

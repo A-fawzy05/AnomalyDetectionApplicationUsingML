@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.session import get_db
 from db.repositories import run_repository, case_repository, phase_repository
 from api.v1.schemas.response import RunListItem, AnalysisResponse
+from api.deps import require_membership, Identity
 
 router = APIRouter()
 
@@ -17,7 +18,8 @@ router = APIRouter()
 async def list_runs(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    identity: Identity = Depends(require_membership),
 ):
     runs = await run_repository.list_runs(db, page, page_size)
     return runs

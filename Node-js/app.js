@@ -8,6 +8,7 @@ const connectDB = require('./config/db.config');
 const authRoutes = require('./routes/auth.routes');
 const orgRoutes = require('./routes/organization.routes');
 const teamRoutes = require('./routes/team.routes');
+const anomalyRoutes = require('./routes/anomaly.routes');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/org', orgRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/anomaly', anomalyRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

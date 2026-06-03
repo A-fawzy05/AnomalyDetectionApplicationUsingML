@@ -24,5 +24,11 @@ module.exports = {
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/auth/google/callback',
   
   // Frontend URL
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000'
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+
+  // Anomaly service (FastAPI) — the gateway proxies analysis/report/read calls
+  // here and forwards the caller's identity (role + team membership), signed
+  // with GATEWAY_SHARED_SECRET so the anomaly service can trust and enforce it.
+  FASTAPI_URL: process.env.FASTAPI_URL || 'http://localhost:8001',
+  GATEWAY_SHARED_SECRET: process.env.GATEWAY_SHARED_SECRET || ''
 };

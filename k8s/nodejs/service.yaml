@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs
+  namespace: p2p
+  labels:
+    app: nodejs
+spec:
+  type: ClusterIP
+  selector:
+    app: nodejs
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001

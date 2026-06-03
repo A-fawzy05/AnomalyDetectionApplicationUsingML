@@ -11,6 +11,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import require_roles, Identity
 from api.v1.schemas.response import AnalysisResponse
 from core.config import settings
 from core.exceptions import UnsupportedFileTypeError, IngestionError
@@ -35,7 +36,8 @@ router = APIRouter()
 async def analyze_event_log(
     file: UploadFile = File(...),
     file_type: Optional[str] = Form(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    identity: Identity = Depends(require_roles("admin", "analyst")),
 ):
     start_time_ts = time.time()
     

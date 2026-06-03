@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.session import get_db
 from db.repositories import case_repository
 from api.v1.schemas.response import CaseListResponse, AnomalyCase
+from api.deps import require_membership, Identity
 
 router = APIRouter()
 
@@ -22,7 +23,8 @@ async def get_cases(
     severity_label: Optional[str] = None,
     status: Optional[str] = None,
     supplier: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    identity: Identity = Depends(require_membership),
 ):
     filters = {
         "anomaly_type": anomaly_type,

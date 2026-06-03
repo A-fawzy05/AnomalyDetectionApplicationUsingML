@@ -1,0 +1,30 @@
+# Runs Django migrations ONCE, before/independently of the Deployment, so that
+# scaling the web Deployment up/down never races multiple `migrate` processes.
+# Re-run with: kubectl delete job django-migrate -n p2p && kubectl apply -f this
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: django-migrate
+  namespace: p2p
+  labels:
+    app: django
+    component: migrate
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: django
+        component: migrate
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: p2p-process-mining:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          envFrom:
+            - configMapRef:
+                name: django-config
+            - secretRef:
+                name: django-secret

@@ -22,6 +22,16 @@ class Settings(BaseSettings):
     # Security
     ALLOWED_ORIGINS: List[str] = ["*"]
 
+    # Trusted-gateway authorization.
+    # The Node.js API gateway authenticates end users (JWT) and forwards the
+    # caller's identity claims (role + team membership) on each request, signed
+    # with this shared secret. When set, the anomaly service ENFORCES those
+    # claims (see api/deps.py): a non-member is refused on every data endpoint,
+    # and analyze/report additionally require an admin/analyst role.
+    # When left empty the service runs "open" (no enforcement) — convenient for
+    # local, direct-to-service testing and backwards compatibility.
+    GATEWAY_SHARED_SECRET: str = ""
+
     # Kafka (kept for stream endpoints; not used by report)
     KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
 

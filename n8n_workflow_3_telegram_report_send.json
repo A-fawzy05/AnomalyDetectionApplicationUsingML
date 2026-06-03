@@ -1,0 +1,111 @@
+{
+  "name": "Workflow 3 – P2P Report: Send to Admin Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-telegram-report",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook – Receive Send Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "send-telegram-report",
+      "notes": "Called by Node.js after it looks up the admin's telegramChatId.\nExpects JSON body: { chat_id, admin_name, team_name, subteam_name, sender_name, report_markdown }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst chatId = body.chat_id;\nconst adminName = body.admin_name || 'Admin';\nconst teamName = body.team_name || 'Unknown Team';\nconst subteamName = body.subteam_name || 'Unknown Subteam';\nconst senderName = body.sender_name || 'A team member';\nconst reportMarkdown = body.report_markdown || '';\n\nif (!chatId) throw new Error('chat_id is missing');\nif (!reportMarkdown) throw new Error('report_markdown is missing');\n\nconst headerText = `📊 *P2P Procurement Report*\\n\\n👤 *To:* ${adminName}\\n🏢 *Team:* ${teamName}\\n📁 *Subteam:* ${subteamName}\\n✉️ *Submitted by:* ${senderName}\\n\\nA new procurement analysis report has been generated for your review.`;\n\n// Telegram limit is 4096 chars — truncate with a note if longer\nconst MAX = 4000;\nconst reportText = reportMarkdown.length > MAX\n  ? reportMarkdown.substring(0, MAX) + '\\n\\n_[Report truncated — view full report in the dashboard]_'\n  : reportMarkdown;\n\nreturn [{ json: { chat_id: chatId, header_text: headerText, report_text: reportText } }];"
+      },
+      "id": "format-message",
+      "name": "Format Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"chat_id\": {{ JSON.stringify($json.chat_id) }},\n  \"text\": {{ JSON.stringify($json.header_text) }},\n  \"parse_mode\": \"Markdown\"\n}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "send-header",
+      "name": "Send Header Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 400],
+      "notes": "n8n Cloud setup:\n  Settings → Variables → Add:\n    Name: TELEGRAM_BOT_TOKEN\n    Value: your bot token from @BotFather"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"chat_id\": {{ JSON.stringify($('Format Messages').first().json.chat_id) }},\n  \"text\": {{ JSON.stringify($('Format Messages').first().json.report_text) }}\n}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "send-report",
+      "name": "Send Report Body",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Report sent to admin on Telegram\" }",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "application/json" }]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook – Receive Send Request": {
+      "main": [[{ "node": "Format Messages", "type": "main", "index": 0 }]]
+    },
+    "Format Messages": {
+      "main": [[{ "node": "Send Header Message", "type": "main", "index": 0 }]]
+    },
+    "Send Header Message": {
+      "main": [[{ "node": "Send Report Body", "type": "main", "index": 0 }]]
+    },
+    "Send Report Body": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["telegram", "report", "webhook", "p2p"],
+  "_setup_guide": {
+    "n8n_cloud_variables": {
+      "how_to_set": "n8n Cloud → Settings → Variables → Add Variable",
+      "required": {
+        "TELEGRAM_BOT_TOKEN": "Your bot token from @BotFather on Telegram"
+      }
+    },
+    "webhook_url": "Production webhook URL: https://amrfawzy26.app.n8n.cloud/webhook/send-telegram-report\n\nSet this as N8N_TELEGRAM_WEBHOOK_URL in Node-js/.env",
+    "message_format": "Admin receives two Telegram messages:\n1. Header: who sent it, from which team/subteam\n2. Report body: up to 4000 chars (truncated with a note if longer)",
+    "how_it_works": "No Code node HTTP calls — uses native HTTP Request nodes only. Format Messages (Code) prepares the text, then two HTTP Request nodes send header and report sequentially to Telegram."
+  }
+}

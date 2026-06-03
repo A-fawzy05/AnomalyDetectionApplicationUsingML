@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -6,7 +7,20 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
+
+def health_check(request):
+    """
+    Lightweight liveness/readiness probe endpoint.
+    Intentionally does NOT touch the database so a slow/unavailable DB does not
+    trigger Kubernetes liveness restarts (DB health is gated by readiness at the
+    app level instead). Returns 200 as long as the process can serve requests.
+    """
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    # Health check (used by Kubernetes probes / load balancers)
+    path("health/", health_check, name="health"),
     # OpenAPI schema & docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

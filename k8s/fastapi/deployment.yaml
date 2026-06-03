@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  namespace: p2p
+  labels:
+    app: fastapi
+    tier: anomaly
+    app.kubernetes.io/part-of: p2p-insight
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fastapi
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: fastapi
+        tier: anomaly
+    spec:
+      containers:
+        - name: anomaly-api
+          image: p2p-anomaly-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: fastapi-config
+            - secretRef:
+                name: fastapi-secret
+          # Heavier footprint: TensorFlow + the LSTM/IsolationForest artifacts
+          # are loaded into memory at startup. The pre-trained models are baked
+          # into the image (read-only), so each replica is stateless → safe to
+          # scale horizontally.
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2560Mi
+          # --- Self-healing probes ---
+          # startup: VERY generous — model loading can take minutes on a cold
+          # start (60 * 5s = up to 5 minutes) before liveness/readiness apply.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 5
+            failureThreshold: 60
+          # liveness: TCP only — just "is the process alive?". Deliberately NOT
+          # /health so a transient DB outage doesn't cause restart loops.
+          livenessProbe:
+            tcpSocket:
+              port: 8001
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # readiness: full /health (db_connected + models_loaded). If the DB
+          # drops, the pod is removed from the Service but NOT restarted.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fastapi
+  namespace: p2p
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fastapi

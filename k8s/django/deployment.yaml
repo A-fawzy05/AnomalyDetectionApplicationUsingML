@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django
+  namespace: p2p
+  labels:
+    app: django
+    tier: process-mining
+    app.kubernetes.io/part-of: p2p-insight
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: django
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: django
+        tier: process-mining
+    spec:
+      containers:
+        - name: process-mining
+          image: p2p-process-mining:latest
+          imagePullPolicy: IfNotPresent
+          # Override the image's dev-server CMD with a production gunicorn server.
+          # Migrations are handled separately by migrate-job.yaml (not here).
+          command: ["gunicorn"]
+          args:
+            - "--bind"
+            - "0.0.0.0:8000"
+            - "--workers"
+            - "4"
+            - "--timeout"
+            - "120"
+            - "config.wsgi:application"
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: django-config
+            - secretRef:
+                name: django-secret
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # --- Self-healing probes ---
+          # The Host header MUST be an entry in ALLOWED_HOSTS or Django returns
+          # 400 (DisallowedHost) to the kubelet and the probe fails.
+          startupProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: django
+  namespace: p2p
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: django

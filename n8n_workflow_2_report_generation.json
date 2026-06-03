@@ -1,0 +1,124 @@
+{
+  "name": "Workflow 2 – P2P Report: Webhook → Groq → Response",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-p2p-report",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook – Receive Report Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "generate-p2p-report",
+      "notes": "FastAPI POSTs the full run payload here (synchronously, 120s timeout).\nPath: /webhook/generate-p2p-report\nResponds via the 'Respond to Webhook' node at the end."
+    },
+    {
+      "parameters": {
+        "jsCode": "// The payload arrives directly as JSON body from FastAPI.\nconst ctx = $input.first().json.body || $input.first().json;\n\nconst anomalySummary = JSON.stringify(ctx.anomaly_type_counts, null, 2);\nconst severitySummary = JSON.stringify(ctx.severity_counts, null, 2);\n\nconst phaseAnalysis = (ctx.process_flow_map || []).map(p =>\n  `- ${p.phase}: ${p.total_cases} cases, ${p.anomalies} anomalies (${p.anomaly_rate_pct}% anomaly rate)`\n).join('\\n');\n\nconst topCases = (ctx.top_anomalies || []).slice(0, 10).map((c, i) =>\n  `${i+1}. Case ${c.case_id} | ${c.supplier || '-'} | $${(c.amount||0).toLocaleString()} | ${c.anomaly_type} | ${c.severity_label}`\n).join('\\n');\n\nconst prompt = `You are a senior procurement compliance analyst. Analyze the following P2P (Purchase-to-Pay) process mining results and produce a professional structured report.\n\n## Analysis Context\n- Report generated for: ${ctx.user_name}\n- Analysis run: ${ctx.run_id}\n- Source file: ${ctx.file_name || 'uploaded dataset'}\n- Generated at: ${ctx.generated_at}\n\n## Executive Summary\n- Total cases analyzed: ${ctx.summary?.total_cases || 0}\n- Anomalous cases detected: ${ctx.summary?.anomalous_cases || 0}\n- Overall anomaly rate: ${ctx.summary?.anomaly_rate_pct || 0}%\n- Average processing time: ${ctx.summary?.avg_processing_time_days || 0} days\n\n## Anomaly Severity Breakdown\n${severitySummary}\n\n## Anomaly Types Detected\n${anomalySummary}\n\n## Process Phase Analysis\n${phaseAnalysis}\n\n## Top 10 Critical Cases\n${topCases}\n\n---\n\nProduce a structured report with these sections. Be specific, data-driven, and actionable:\n\n1. **EXECUTIVE SUMMARY** (3–4 sentences on overall procurement health)\n\n2. **KEY FINDINGS** (5 most important discoveries as bullet points)\n\n3. **PHASE-BY-PHASE ANALYSIS** (for each process phase: what anomalies exist, business impact)\n\n4. **ANOMALY TYPE DEEP DIVE** (root cause, business risk, financial exposure per anomaly type)\n\n5. **HIGH-RISK CASES** (patterns among the top critical cases)\n\n6. **RECOMMENDATIONS** (5+ specific, prioritised action items with expected impact)\n\n7. **COMPLIANCE RISK ASSESSMENT** (rate: Low / Medium / High / Critical, with justification)\n\nFormat in clean Markdown.`;\n\nreturn [{ json: { ...ctx, groq_prompt: prompt } }];"
+      },
+      "id": "parse-and-build-prompt",
+      "name": "Build Groq Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.GROQ_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a senior P2P procurement compliance analyst. Produce detailed, professional, and actionable reports in Markdown format.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.groq_prompt) }}\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 4096\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "call-groq",
+      "name": "Call Groq API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 400],
+      "notes": "n8n Cloud setup:\n  Settings → Variables → Add:\n    Name: GROQ_API_KEY\n    Value: your key from https://console.groq.com/keys\n\nModel: llama-3.3-70b-versatile (free tier, fast).\nAPI is OpenAI-compatible — Bearer token in Authorization header."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the report markdown from Groq response (OpenAI-compatible format)\nconst groqResponse = $input.first().json;\nconst reportMarkdown = groqResponse.choices?.[0]?.message?.content || '';\n\nif (!reportMarkdown) {\n  throw new Error('Groq returned an empty response');\n}\n\nreturn [{ json: { report_markdown: reportMarkdown } }];"
+      },
+      "id": "extract-report",
+      "name": "Extract Report Markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ report_markdown: $json.report_markdown }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook – Receive Report Request": {
+      "main": [[{ "node": "Build Gemini Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Groq Prompt": {
+      "main": [[{ "node": "Call Groq API", "type": "main", "index": 0 }]]
+    },
+    "Call Groq API": {
+      "main": [[{ "node": "Extract Report Markdown", "type": "main", "index": 0 }]]
+    },
+    "Extract Report Markdown": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["groq", "report", "webhook", "p2p"],
+  "_setup_guide": {
+    "n8n_cloud_variables": {
+      "how_to_set": "n8n Cloud → Settings → Variables → Add Variable",
+      "required": {
+        "GROQ_API_KEY": "Your Groq API key from https://console.groq.com/keys"
+      }
+    },
+    "webhook_url": "Production webhook URL: https://amrfawzy26.app.n8n.cloud/webhook/generate-p2p-report",
+    "how_it_works": "FastAPI POSTs the full run payload to the webhook synchronously (120s timeout). n8n calls Groq (llama-3.3-70b-versatile), extracts the Markdown report from choices[0].message.content, and returns it in the HTTP response. FastAPI passes it straight to the frontend."
+  }
+}
