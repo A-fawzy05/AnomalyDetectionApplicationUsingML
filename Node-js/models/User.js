@@ -90,20 +90,17 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Generate email verification OTP
 userSchema.methods.generateEmailOTP = function() {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   this.emailVerificationOTP = otp;
-  this.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.emailVerificationExpires = Date.now() + 10 * 60 * 1000; 
   return otp;
 };
 
-// Clear OTP after verification
 userSchema.methods.clearEmailOTP = function() {
   this.emailVerificationOTP = undefined;
   this.emailVerificationExpires = undefined;

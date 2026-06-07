@@ -12,12 +12,10 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7); 
 
-    // Verify token
     const decoded = jwtService.verifyToken(token);
 
-    // Get user from database
     const user = await User.findById(decoded.userId);
     if (!user || !user.isActive) {
       return res.status(401).json({
@@ -26,7 +24,6 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Add user info to request object
     req.user = {
       userId: user._id,
       email: user.email,

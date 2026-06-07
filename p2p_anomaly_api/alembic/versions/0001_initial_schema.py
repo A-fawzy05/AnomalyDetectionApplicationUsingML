@@ -1,29 +1,20 @@
-"""initial schema
 
-Revision ID: 0001
-Revises: 
-Create Date: 2024-04-25 20:00:00.000000
-
-"""
+   
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers, used by Alembic.
 revision = '0001'
 down_revision = None
 branch_labels = None
 depends_on = None
 
-
 def upgrade() -> None:
-    # 1. Create schema
+                      
     op.execute("CREATE SCHEMA IF NOT EXISTS p2p")
-    
-    # 2. Enable pgcrypto for UUID generation
+
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
-    # 3. Create analysis_runs table
     op.create_table(
         'analysis_runs',
         sa.Column('run_id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -42,7 +33,6 @@ def upgrade() -> None:
         schema='p2p'
     )
 
-    # 4. Create case_results table
     op.create_table(
         'case_results',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -69,7 +59,6 @@ def upgrade() -> None:
         schema='p2p'
     )
 
-    # 5. Create case_flags table
     op.create_table(
         'case_flags',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -86,7 +75,6 @@ def upgrade() -> None:
         schema='p2p'
     )
 
-    # 6. Create phase_summaries table
     op.create_table(
         'phase_summaries',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -100,7 +88,6 @@ def upgrade() -> None:
         schema='p2p'
     )
 
-    # 7. Create event_log table
     op.create_table(
         'event_log',
         sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
@@ -120,14 +107,12 @@ def upgrade() -> None:
         schema='p2p'
     )
 
-    # 8. Create Indexes
     op.create_index('idx_case_results_run_id', 'case_results', ['run_id'], schema='p2p')
     op.create_index('idx_case_results_severity', 'case_results', ['severity_label'], schema='p2p')
     op.create_index('idx_case_results_type', 'case_results', ['anomaly_type'], schema='p2p')
     op.create_index('idx_case_results_status', 'case_results', ['status'], schema='p2p')
     op.create_index('idx_event_log_run_case', 'event_log', ['run_id', 'case_id'], schema='p2p')
     op.create_index('idx_phase_run', 'phase_summaries', ['run_id'], schema='p2p')
-
 
 def downgrade() -> None:
     op.drop_index('idx_phase_run', table_name='phase_summaries', schema='p2p')

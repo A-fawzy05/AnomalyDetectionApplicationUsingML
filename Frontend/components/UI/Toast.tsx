@@ -15,7 +15,7 @@ interface Toast {
 interface ToastContextType {
   toasts: Toast[];
   addToast: (toast: Omit<Toast, 'id'>) => void;
-  /** Alias of addToast — some dashboards call showToast(). Kept in sync below. */
+  
   showToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
   markAsRead: (id: string) => void;
@@ -39,9 +39,7 @@ interface ToastProviderProps {
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // Synchronous counter — useState is async/batched, so two toasts fired in the
-  // same tick would both read the same value and collide on `toast-0`. A ref
-  // increments immediately, guaranteeing unique keys.
+
   const counterRef = useRef(0);
 
   const addToast = (toast: Omit<Toast, 'id'>) => {
@@ -55,8 +53,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     };
     
     setToasts(prev => [newToast, ...prev]);
-    
-    // Auto remove after duration
+
     if (newToast.duration && newToast.duration > 0) {
       setTimeout(() => {
         removeToast(id);

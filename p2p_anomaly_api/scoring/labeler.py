@@ -1,6 +1,4 @@
-"""
-Logic for labeling anomaly types and calculating severity.
-"""
+
 
 import json
 import logging
@@ -14,19 +12,14 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-
 def apply_labels(
     results_df: pd.DataFrame, 
     raw_df: pd.DataFrame = None,
     if_threshold: float | None = None,
     lstm_threshold: float | None = None,
 ) -> pd.DataFrame:
-    """
-    Apply anomaly type flags and severity scores.
-    If if_threshold / lstm_threshold are provided, use them instead of
-    stored artifact thresholds. This enables per-batch calibration.
-    """
-    # 1. Load thresholds from artifacts or use provided overrides
+
+
     p = os.path.join(settings.MODEL_DIR)
     
     if if_threshold is not None:
@@ -45,28 +38,21 @@ def apply_labels(
             with open(os.path.join(p, "lstm_thresholds.json"), "r") as f:
                 lstm_thresh = json.load(f)
 
-    # 2. Flagging based on business rules
-    
-    # Load training statistics for business rule calculations
     p = Path(settings.MODEL_DIR)
     category_means = json.loads((p / "category_means.json").read_text())
     vendor_freq = json.loads((p / "vendor_freq.json").read_text())
-    
-    # Calculate training statistics
+
     vendor_frequencies = list(vendor_freq.values())
     vendor_5th_percentile = np.percentile(vendor_frequencies, 5) if vendor_frequencies else 0
-    
-    # FLAG 1 — Price Mismatch
+
     price_deviation = results_df["max_abs_price_deviation"].fillna(0)
-    # Require > 50% deviation AND a relative batch-level IF or Z-score signal
-    # This prevents global price shifts from flagging the whole dataset.
+
     price_condition = price_deviation > 0.50
     
     if "if_score" in results_df.columns:
-        # Use a combination of IF threshold and a batch-relative Z-score for price
+                                                                                  
         price_if_gate = results_df["if_score"] >= if_thresh
-        
-        # Calculate batch-relative Z-score for price deviation
+
         dev_mean = price_deviation.mean()
         dev_std  = price_deviation.std() or 1.0
         price_z_gate = ((price_deviation - dev_mean) / dev_std) > 2.0
@@ -78,7 +64,6 @@ def apply_labels(
         (price_condition & (price_if_gate | price_z_gate))
     ).astype("int8")
 
-    # FLAG 2 — Three-Way Match Failure
     if "three_way_match_flag" in results_df.columns:
         three_way_match_condition = results_df["three_way_match_flag"] == 1
     else:
@@ -99,7 +84,6 @@ def apply_labels(
     else:
         three_way_if_gate = pd.Series(True, index=results_df.index)
 
-    # Note: On clean datasets, this will naturally be 0.
     batch_has_invoice = (results_df.get("has_inv", pd.Series(0)) == 1).any()
 
     results_df["three_way_match_failure"] = (
@@ -109,7 +93,6 @@ def apply_labels(
         batch_has_invoice
     ).astype("int8")
 
-    # FLAG 3 — Maverick Buying
     APPROVAL_ACTIVITIES = {"Approve Purchase Order", "Approve Purchase Requisition",
                            "Delegate Purchase Requisition Approval"}
 
@@ -139,7 +122,6 @@ def apply_labels(
         (no_approval & very_short)
     ).astype("int8")
 
-    # FLAG 4 — Temporal Delay
     if "lstm_temporal_score" in results_df.columns:
         temporal_model_flag = results_df["lstm_temporal_score"] > lstm_thresh["temporal"]
     else:
@@ -163,7 +145,6 @@ def apply_labels(
         ((temporal_model_flag | temporal_if_gate) & time_rule) | extreme_time
     ).astype("int8")
 
-    # FLAG 5 — Duplicate Invoice
     INVOICE_RECEIPT_ACTIVITIES = {"Create Invoice Receipt", "Record Invoice",
                                   "Book Invoice", "Vendor Creates Invoice"}
 
@@ -191,7 +172,6 @@ def apply_labels(
         (has_duplicate_invoice & duplicate_if_gate & is_high_count) | is_extreme_duplicate
     ).astype("int8")
 
-    # FLAG 6 — Unauthorized Vendor
     if "if_score" in results_df.columns:
         unauthorized_condition = results_df["if_score"] >= if_thresh
     else:
@@ -209,7 +189,6 @@ def apply_labels(
         extreme_unauthorized
     ).astype("int8")
 
-    # FLAG 7 — Quantity Variance
     if "case_quantity" in results_df.columns:
         qty = results_df["case_quantity"].fillna(0)
         qty_mean = qty.mean()
@@ -221,7 +200,6 @@ def apply_labels(
 
     results_df["quantity_variance"] = quantity_variance_rule.astype("int8").values
 
-    # 3. Primary Anomaly Type Priority (Lowest to Highest)
     priority_list = [
         ("unauthorized_vendor",     "Unauthorized Vendor"),
         ("price_mismatch",          "Price Mismatch"),
@@ -237,7 +215,6 @@ def apply_labels(
         mask = results_df[flag_col] == 1
         results_df.loc[mask, "anomaly_type"] = label
 
-    # 4. Severity Score Calculation
     results_df["n_flags"] = results_df[["price_mismatch", "three_way_match_failure", "maverick_buying",
                                         "temporal_delay", "duplicate_invoice", "unauthorized_vendor",
                                         "quantity_variance"]].fillna(0).sum(axis=1)
@@ -256,8 +233,7 @@ def apply_labels(
         results_df.loc[flagged_idx, "severity_score"] = (0.55 + inner_rank * 0.45).clip(0.55, 1.0)
 
     results_df.loc[~is_flagged, "severity_score"] = raw_score[~is_flagged].clip(0.0, 0.54)
-    
-    # Severity Labeling
+
     results_df["severity_label"] = "Low"
     results_df.loc[results_df["severity_score"] >= 0.4, "severity_label"] = "Medium"
     results_df.loc[results_df["severity_score"] >= 0.7, "severity_label"] = "High"

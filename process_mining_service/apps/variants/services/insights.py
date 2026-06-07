@@ -1,7 +1,5 @@
-"""
-Rule-based quick insights generator for process variants.
-No LLM or external API calls — purely deterministic logic.
-"""
+
+   
 import logging
 
 from apps.variants.models import ProcessVariant
@@ -12,20 +10,12 @@ ANOMALY_THRESHOLD_PCT = 15.0
 CONFORMANCE_TARGET_PCT = 85.0
 CYCLE_TIME_BENCHMARK_DAYS = 10.0
 
-
 def generate_variant_insights(
     variant: ProcessVariant,
     threshold_pct: float = ANOMALY_THRESHOLD_PCT,
 ) -> list[dict]:
-    """
-    Generate deterministic quick_insights for a variant using threshold comparisons.
 
-    Rules:
-    1. High anomaly rate > threshold → warning
-    2. Low conformance score < 85 → warning
-    3. Above-average cycle time > 10 days → info
-    4. Good variant (all ok) → info optimization opportunity
-    """
+       
     insights: list[dict] = []
 
     logger.debug(
@@ -74,7 +64,6 @@ def generate_variant_insights(
             }
         )
 
-    # If the variant is in good shape overall
     if (
         variant.anomaly_rate_pct <= threshold_pct
         and variant.conformance_score >= CONFORMANCE_TARGET_PCT

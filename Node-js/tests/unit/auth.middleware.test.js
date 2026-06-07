@@ -1,7 +1,4 @@
-/**
- * Unit tests for middleware/auth.middleware.js (authenticate + authorize).
- * The User model is mocked so no DB is touched.
- */
+
 jest.mock('../../models/User', () => ({ findById: jest.fn() }));
 
 const User = require('../../models/User');

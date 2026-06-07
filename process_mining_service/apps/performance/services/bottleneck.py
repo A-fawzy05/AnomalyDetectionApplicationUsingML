@@ -1,8 +1,5 @@
-"""
-Bottleneck detection service.
-An activity is a bottleneck if its avg duration is > 2 standard deviations
-above the mean of all activities in the event log.
-"""
+
+   
 import logging
 import statistics
 from typing import Optional
@@ -12,9 +9,6 @@ from apps.performance.models import ActivityMetric
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Rule-based recommendation lookup table — no LLM / external API calls.
-# ---------------------------------------------------------------------------
 RECOMMENDATIONS: dict[tuple[str, str], str] = {
     ("Invoice Processing", "high"): (
         "Implement automated invoice validation to reduce manual review time by 40%."
@@ -55,7 +49,7 @@ RECOMMENDATIONS: dict[tuple[str, str], str] = {
     ("Payment Authorization", "high"): (
         "Implement tiered payment authority to reduce authorization bottlenecks."
     ),
-    # Default fallbacks
+                       
     ("__default__", "high"): (
         "This activity is a critical bottleneck. Review resource allocation and automation opportunities."
     ),
@@ -67,27 +61,24 @@ RECOMMENDATIONS: dict[tuple[str, str], str] = {
     ),
 }
 
-
 def _get_recommendation(activity_name: str, severity: str) -> str:
-    """Look up recommendation string from the rule table; fall back to default."""
+                                                                                  
     key = (activity_name, severity)
     return RECOMMENDATIONS.get(key) or RECOMMENDATIONS.get(("__default__", severity), "")
 
-
 def _severity_from_duration(avg_days: float) -> str:
-    """Classify severity based on avg duration thresholds."""
+                                                             
     if avg_days > 10:
         return "high"
     if avg_days >= 5:
         return "medium"
     return "low"
 
-
 def compute_bottleneck_metrics(event_log: EventLog) -> None:
-    """
-    Compute and persist ActivityMetric rows for every unique activity in the log.
-    A bottleneck is flagged when avg_duration > mean + 2*stdev across all activities.
-    """
+\
+\
+\
+       
     from django.db.models import Avg, Min, Max, StdDev, Count
     from apps.event_logs.models import P2PEvent
 
@@ -95,7 +86,6 @@ def compute_bottleneck_metrics(event_log: EventLog) -> None:
         {"event": "bottleneck_computation_started", "event_log_id": str(event_log.id)}
     )
 
-    # Aggregate per-activity stats from P2PEvent rows linked to this log's cases
     events_qs = P2PEvent.objects.filter(
         case__event_log=event_log,
         duration_days__isnull=False,
@@ -115,7 +105,6 @@ def compute_bottleneck_metrics(event_log: EventLog) -> None:
         )
         return
 
-    # Compute per-activity averages
     act_avgs = {}
     for act, data in activity_stats.items():
         durations = data["durations"]
@@ -136,7 +125,6 @@ def compute_bottleneck_metrics(event_log: EventLog) -> None:
         }
     )
 
-    # Delete existing records for this log before re-inserting
     ActivityMetric.objects.filter(event_log=event_log).delete()
 
     metrics_to_create = []

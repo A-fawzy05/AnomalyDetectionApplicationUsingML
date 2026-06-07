@@ -6,21 +6,18 @@ import type { LivelinePoint } from 'liveline';
 
 interface LiveTelemetryPanelProps {
   isLive: boolean;
-  anomalyRate: number;    // real current %, e.g. 6.2 — changes when data is appended
-  anomalousCases: number; // real current count — changes when data is appended
+  anomalyRate: number;    
+  anomalousCases: number; 
 }
 
-const TICK_MS = 100;    // 10 fps — keeps the time axis scrolling live
-const MAX_POINTS = 300; // ~30s window
+const TICK_MS = 100;    
+const MAX_POINTS = 300; 
 
 const LiveTelemetryPanel = ({ isLive, anomalyRate, anomalousCases }: LiveTelemetryPanelProps) => {
   const [rateData, setRateData] = useState<LivelinePoint[]>([]);
   const [casesData, setCasesData] = useState<LivelinePoint[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
-  // Latest REAL values, kept in refs so the interval always plots the current
-  // metric without re-subscribing. These update whenever an append refreshes
-  // the dashboard (the parent re-renders this panel with new props).
   const rateRef = useRef(anomalyRate);
   const casesRef = useRef(anomalousCases);
   rateRef.current = anomalyRate;
@@ -32,19 +29,16 @@ const LiveTelemetryPanel = ({ isLive, anomalyRate, anomalousCases }: LiveTelemet
 
   useEffect(() => {
     if (!isLive) {
-      // Reset so the next activation starts fresh at the current real value.
+      
       setRateData([]);
       setCasesData([]);
       return;
     }
 
-    // Seed both series from the real current values.
     const t0 = Date.now() / 1000;
     setRateData([{ time: t0, value: rateRef.current }]);
     setCasesData([{ time: t0, value: casesRef.current }]);
 
-    // Each tick records the CURRENT real metric. The line sits flat at the true
-    // value and steps/ramps only when an append changes it — no simulation.
     const id = setInterval(() => {
       const t = Date.now() / 1000;
 

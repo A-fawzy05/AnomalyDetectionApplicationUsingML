@@ -1,6 +1,4 @@
-"""
-Health check endpoint.
-"""
+
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +9,6 @@ from models.lstm_autoencoder import LSTMAutoencoderModel
 from core.config import settings
 
 router = APIRouter()
-
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check(db: AsyncSession = Depends(get_db)):

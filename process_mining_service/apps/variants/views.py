@@ -1,7 +1,5 @@
-"""
-Variant Analysis API Views.
-All views are thin: validate → call service → serialize → return.
-"""
+
+   
 import logging
 
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -31,16 +29,13 @@ logger = logging.getLogger(__name__)
 ANOMALY_THRESHOLD_PCT = 15.0
 CONFORMANCE_TARGET_PCT = 85.0
 
-
 def _get_event_log(event_log_id: str) -> EventLog | None:
     try:
         return EventLog.objects.get(pk=event_log_id)
     except EventLog.DoesNotExist:
         return None
 
-
 class VariantSummaryView(APIView):
-    """GET /api/v1/variants/summary/"""
 
     @extend_schema(
         parameters=[
@@ -72,7 +67,6 @@ class VariantSummaryView(APIView):
         most_frequent = variants.order_by("-frequency_pct").first()
         highest_anomaly = variants.order_by("-anomaly_rate_pct").first()
 
-        # Average conformance across all variants
         if total > 0:
             avg_conformance = sum(v.conformance_score for v in variants) / total
         else:
@@ -110,9 +104,7 @@ class VariantSummaryView(APIView):
         }
         return Response(data, status=status.HTTP_200_OK)
 
-
 class FrequencyAnomalyScatterView(APIView):
-    """GET /api/v1/variants/frequency-anomaly-scatter/"""
 
     @extend_schema(
         parameters=[
@@ -142,7 +134,6 @@ class FrequencyAnomalyScatterView(APIView):
 
         qs = ProcessVariant.objects.filter(event_log=event_log)
 
-        # Filters
         try:
             min_freq = float(request.query_params.get("min_frequency", 0))
             max_freq = float(request.query_params.get("max_frequency", 100))
@@ -184,9 +175,7 @@ class FrequencyAnomalyScatterView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class VariantListView(APIView):
-    """GET /api/v1/variants/list/"""
 
     @extend_schema(
         parameters=[
@@ -220,7 +209,6 @@ class VariantListView(APIView):
 
         qs = ProcessVariant.objects.filter(event_log=event_log)
 
-        # Preset filters
         filter_param = request.query_params.get("filter")
         filter_map = {
             "high_frequency": {"frequency_pct__gte": 20.0},
@@ -231,7 +219,6 @@ class VariantListView(APIView):
         if filter_param and filter_param in filter_map:
             qs = qs.filter(**filter_map[filter_param])
 
-        # Sorting
         sort_db_map = {
             "frequency": "frequency_pct",
             "anomaly_rate": "anomaly_rate_pct",
@@ -244,15 +231,12 @@ class VariantListView(APIView):
         sort_field = sort_db_map.get(sort_by, "frequency_pct")
         qs = qs.order_by(sort_field if order == "asc" else f"-{sort_field}")
 
-        # Pagination
         paginator = StandardPagePagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = VariantListSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-
 class VariantDetailView(APIView):
-    """GET /api/v1/variants/{variant_id}/detail/"""
 
     @extend_schema(
         parameters=[
@@ -283,7 +267,6 @@ class VariantDetailView(APIView):
         event_log = variant.event_log
         dist = get_severity_distribution(event_log, variant)
 
-        # Build severity_breakdown as {level: {count, pct}}
         severity_breakdown = {
             item["level"]: {"count": item["count"], "pct": item["pct"]}
             for item in dist["severity_distribution"]
@@ -305,9 +288,7 @@ class VariantDetailView(APIView):
         }
         return Response(data, status=status.HTTP_200_OK)
 
-
 class AnomalySeverityDistributionView(APIView):
-    """GET /api/v1/variants/anomaly-severity-distribution/"""
 
     @extend_schema(
         parameters=[
@@ -350,12 +331,8 @@ class AnomalySeverityDistributionView(APIView):
         dist = get_severity_distribution(event_log, variant)
         return Response(dist, status=status.HTTP_200_OK)
 
-
 class CaseAnomalySeverityPushView(APIView):
-    """
-    POST /api/v1/variants/anomaly-severity/
-    Called by the FastAPI anomaly service to push severity results per case.
-    """
+
 
     @extend_schema(
         request=CaseAnomalySeverityWriteSerializer,
@@ -399,9 +376,7 @@ class CaseAnomalySeverityPushView(APIView):
         )
         return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
 
-
 class VariantAnalysisAggregatedView(APIView):
-    """POST /api/v1/variants/aggregate/ — All variant analysis in one endpoint with FastAPI input in body."""
 
     @extend_schema(
         parameters=[
@@ -446,12 +421,11 @@ class VariantAnalysisAggregatedView(APIView):
 
         logger.info({"event": "variant_aggregate_request", "event_log_id": event_log_id, "run_id": str(run_id) if run_id else None})
 
-        # ---- Process FastAPI anomaly data if provided ----
         anomaly_data_processed = False
         if anomaly_data:
-            # Handle full FastAPI response format with anomaly_cases array
+                                                                          
             if "anomaly_cases" in anomaly_data:
-                # Map FastAPI severity labels to Django severity enum
+                                                                     
                 severity_map = {
                     "Critical": "critical",
                     "High": "high",
@@ -460,11 +434,7 @@ class VariantAnalysisAggregatedView(APIView):
                 }
                 for case_anomaly in anomaly_data["anomaly_cases"]:
                     case_id_str = case_anomaly.get("case_id")
-                    # Scope the lookup to THIS event log. case_id is unique within
-                    # an event log but NOT across uploads (e.g. the OCEL2 test file
-                    # reuses deterministic ids like "purchase_order:test_1"), so an
-                    # unscoped .get() raised MultipleObjectsReturned → HTTP 500.
-                    # .filter().first() can never raise on duplicates.
+
                     case = (
                         P2PCase.objects
                         .filter(event_log=event_log, case_id=case_id_str)
@@ -473,10 +443,10 @@ class VariantAnalysisAggregatedView(APIView):
                     if case is None:
                         logger.warning({"event": "case_not_found_for_anomaly", "case_id": case_id_str})
                         continue
-                    # Extract flags as flagged_by list
+                                                      
                     flags = case_anomaly.get("flags", {})
                     flagged_by = [flag for flag, is_flagged in flags.items() if is_flagged]
-                    # Map severity label to lowercase
+                                                     
                     severity_label = case_anomaly.get("severity_label", "none")
                     severity = severity_map.get(severity_label, "none")
                     CaseAnomalySeverity.objects.update_or_create(
@@ -484,14 +454,14 @@ class VariantAnalysisAggregatedView(APIView):
                         defaults={
                             "severity": severity,
                             "anomaly_score": case_anomaly.get("severity_score"),
-                            "anomaly_count": 1,  # Each case counted once
+                            "anomaly_count": 1,                          
                             "flagged_by": flagged_by,
                         },
                     )
                 anomaly_data_processed = True
                 logger.info({"event": "fastapi_anomaly_data_processed", "event_log_id": event_log_id})
             else:
-                # Handle simplified format {case_id: {severity, anomaly_score, anomaly_count, flagged_by}}
+                                                                                                          
                 for case_id_str, case_data in anomaly_data.items():
                     try:
                         case = P2PCase.objects.get(pk=case_id_str)
@@ -509,30 +479,25 @@ class VariantAnalysisAggregatedView(APIView):
                 anomaly_data_processed = True
                 logger.info({"event": "fastapi_anomaly_data_processed", "event_log_id": event_log_id})
 
-        # ---- Recompute conformance and/or anomaly rates ----
         from apps.variants.services.conformance import compute_conformance
         from apps.variants.services.severity import compute_anomaly_rates
 
         variants_for_recompute = list(ProcessVariant.objects.filter(event_log=event_log))
 
-        # Auto-recompute conformance if explicitly requested OR if all scores are still 0
         all_zero_conformance = variants_for_recompute and all(
             v.conformance_score == 0.0 for v in variants_for_recompute
         )
         if recompute_conformance or all_zero_conformance:
             compute_conformance(event_log, variants_for_recompute)
-            # Refresh from DB after save
+                                        
             variants_for_recompute = list(ProcessVariant.objects.filter(event_log=event_log))
             recompute_conformance = True
             logger.info({"event": "conformance_recomputed", "event_log_id": event_log_id})
 
-        # Always recompute anomaly rates when anomaly data was just processed,
-        # or when conformance was recomputed (which may have refreshed the variant list)
         if anomaly_data_processed or recompute_conformance:
             compute_anomaly_rates(event_log, variants_for_recompute)
             logger.info({"event": "anomaly_rates_recomputed", "event_log_id": event_log_id})
 
-        # ---- Variant Summary ----
         variants = ProcessVariant.objects.filter(event_log=event_log)
         total = variants.count()
         most_frequent = variants.order_by("-frequency_pct").first()
@@ -543,7 +508,6 @@ class VariantAnalysisAggregatedView(APIView):
         else:
             avg_conformance = 0.0
 
-        # ---- Frequency Anomaly Scatter ----
         try:
             min_freq = float(request.query_params.get("min_frequency", 0))
             max_freq = float(request.query_params.get("max_frequency", 100))
@@ -577,7 +541,6 @@ class VariantAnalysisAggregatedView(APIView):
             for v in scatter_qs
         ]
 
-        # ---- Variant List (paginated) ----
         list_qs = ProcessVariant.objects.filter(event_log=event_log)
 
         filter_param = request.query_params.get("filter")
@@ -620,7 +583,6 @@ class VariantAnalysisAggregatedView(APIView):
         variants_response = paginator.get_paginated_response(serializer.data)
         variants_data = variants_response.data
 
-        # ---- Anomaly Severity Distribution ----
         severity_dist = get_severity_distribution(event_log, None)
 
         return Response({

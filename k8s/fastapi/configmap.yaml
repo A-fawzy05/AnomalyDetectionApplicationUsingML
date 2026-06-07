@@ -5,9 +5,5 @@ metadata:
   namespace: p2p
 data:
   LOG_LEVEL: "INFO"
-  # Internal address of the Node.js gateway (used for report callbacks, etc.).
   NODEJS_URL: "http://nodejs:3001"
-  # Kafka is OUT OF SCOPE for these manifests (streaming is optional). The core
-  # /analyze + /score endpoints work without it. Point this at a kafka Service
-  # if/when you deploy one.
   KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"

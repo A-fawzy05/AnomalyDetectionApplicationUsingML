@@ -8,8 +8,6 @@ interface DashboardLoadingScreenProps {
   variant?: DashboardVariant;
 }
 
-// ─── Primitives ───────────────────────────────────────────────────────────────
-
 const Sk = ({ className = '' }: { className?: string }) => (
   <div className={`animate-pulse rounded bg-border-primary/40 ${className}`} />
 );
@@ -81,8 +79,6 @@ const TableBodySk = ({ rows = 7, cols = 7 }: { rows?: number; cols?: number }) =
   </>
 );
 
-// ─── Anomaly Skeleton ─────────────────────────────────────────────────────────
-
 const AnomalySkeleton = () => (
   <div className="p-8">
     <div className="mb-8 space-y-2">
@@ -90,14 +86,14 @@ const AnomalySkeleton = () => (
       <Sk className="w-96 h-4" />
     </div>
 
-    {/* 4 KPI cards */}
+    {}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {Array.from({ length: 4 }).map((_, i) => <KPICardSk key={i} />)}
     </div>
 
-    {/* Main 12-col grid */}
+    {}
     <div className="grid grid-cols-12 gap-6">
-      {/* Filter panel – 3 cols */}
+      {}
       <div className="col-span-3 bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
         <Sk className="w-20 h-4 rounded mb-2" />
         {Array.from({ length: 6 }).map((_, i) => (
@@ -116,7 +112,7 @@ const AnomalySkeleton = () => (
         </div>
       </div>
 
-      {/* Anomaly table – 6 cols */}
+      {}
       <div className="col-span-6 bg-bg-secondary border border-border-primary rounded-xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border-primary">
           <Sk className="w-28 h-4" />
@@ -132,9 +128,9 @@ const AnomalySkeleton = () => (
         </div>
       </div>
 
-      {/* Right column – 3 cols */}
+      {}
       <div className="col-span-3 space-y-6">
-        {/* Feed */}
+        {}
         <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
           <Sk className="w-32 h-4 mb-2" />
           {Array.from({ length: 4 }).map((_, i) => (
@@ -147,7 +143,7 @@ const AnomalySkeleton = () => (
             </div>
           ))}
         </div>
-        {/* Process map */}
+        {}
         <div className="bg-bg-secondary border border-border-primary rounded-xl p-4 space-y-3">
           <Sk className="w-32 h-4 mb-2" />
           {Array.from({ length: 5 }).map((_, i) => (
@@ -158,8 +154,6 @@ const AnomalySkeleton = () => (
     </div>
   </div>
 );
-
-// ─── Performance Skeleton ─────────────────────────────────────────────────────
 
 const PerformanceSkeleton = () => (
   <div className="p-8">
@@ -174,12 +168,12 @@ const PerformanceSkeleton = () => (
       </div>
     </div>
 
-    {/* 6 KPI cards – 3 cols */}
+    {}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       {Array.from({ length: 6 }).map((_, i) => <KPICardSk key={i} />)}
     </div>
 
-    {/* Chart + Rankings */}
+    {}
     <div className="grid grid-cols-12 gap-6 mb-8">
       <div className="col-span-8 bg-bg-secondary border border-border-primary rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
@@ -202,7 +196,7 @@ const PerformanceSkeleton = () => (
       </div>
     </div>
 
-    {/* Process flow diagram */}
+    {}
     <div className="mb-8 bg-bg-secondary border border-border-primary rounded-xl p-5">
       <Sk className="w-40 h-4 mb-5" />
       <div className="flex items-center gap-3 overflow-x-hidden py-1">
@@ -215,7 +209,7 @@ const PerformanceSkeleton = () => (
       </div>
     </div>
 
-    {/* Table */}
+    {}
     <div className="bg-bg-secondary border border-border-primary rounded-xl overflow-hidden">
       <div className="p-4 border-b border-border-primary">
         <Sk className="w-48 h-4" />
@@ -225,8 +219,6 @@ const PerformanceSkeleton = () => (
   </div>
 );
 
-// ─── Variant Skeleton ─────────────────────────────────────────────────────────
-
 const VariantSkeleton = () => (
   <div className="p-8">
     <div className="mb-8 space-y-2">
@@ -235,14 +227,14 @@ const VariantSkeleton = () => (
     </div>
 
     <div className="space-y-6">
-      {/* 4 overview cards */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => <KPICardSk key={i} />)}
       </div>
 
-      {/* Main 3-col grid */}
+      {}
       <div className="grid grid-cols-3 gap-6">
-        {/* Left 2/3: chart + table */}
+        {}
         <div className="col-span-2 space-y-6">
           <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
             <Sk className="w-40 h-4 mb-5" />
@@ -256,7 +248,7 @@ const VariantSkeleton = () => (
           </div>
         </div>
 
-        {/* Right 1/3: filters + breakdown */}
+        {}
         <div className="space-y-6">
           <div className="bg-bg-secondary border border-border-primary rounded-xl p-5 space-y-4">
             <Sk className="w-24 h-4" />
@@ -287,8 +279,6 @@ const VariantSkeleton = () => (
     </div>
   </div>
 );
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 const DashboardLoadingScreen = ({
   isLoading = false,

@@ -1,6 +1,4 @@
-"""
-Endpoints for retrieving analysis run history.
-"""
+
 
 from typing import List
 from uuid import UUID
@@ -13,7 +11,6 @@ from api.deps import require_membership, Identity
 
 router = APIRouter()
 
-
 @router.get("/runs", response_model=List[RunListItem])
 async def list_runs(
     page: int = Query(1, ge=1),
@@ -24,7 +21,6 @@ async def list_runs(
     runs = await run_repository.list_runs(db, page, page_size)
     return runs
 
-
 @router.get("/runs/{run_id}", response_model=AnalysisResponse)
 async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
     run = await run_repository.get_run(db, run_id)
@@ -34,15 +30,13 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
     if run.status != "completed":
         raise HTTPException(status_code=400, detail=f"Run status is {run.status}")
 
-    # Rebuild AnalysisResponse from DB
     summary = {
         "total_cases": run.total_cases,
         "anomalous_cases": run.anomalous_cases,
         "anomaly_rate": float(run.anomaly_rate) if run.anomaly_rate else 0.0,
         "avg_processing_time_days": float(run.avg_processing_time_days) if run.avg_processing_time_days else 0.0
     }
-    
-    # Get all anomalies for this run
+
     cases = await case_repository.get_cases(db, run_id, {"anomaly_type": None}, 1, 1000)
     
     anomaly_cases = []
@@ -54,8 +48,7 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
             type_counts[c.anomaly_type] = type_counts.get(c.anomaly_type, 0) + 1
             
         sev_counts[c.severity_label] = sev_counts.get(c.severity_label, 0) + 1
-        
-        # Only include top 100 anomalies in the full response to keep it manageable
+
         if c.anomaly_type and len(anomaly_cases) < 100:
             anomaly_cases.append({
                 "case_id": c.case_id,
@@ -102,14 +95,12 @@ async def get_run_details(run_id: UUID, db: AsyncSession = Depends(get_db)):
         "real_time_feed": [item for item in anomaly_cases[:10]]
     }
 
-
 @router.delete("/runs/{run_id}")
 async def delete_run(run_id: UUID, db: AsyncSession = Depends(get_db)):
     success = await run_repository.delete_run(db, run_id)
     if not success:
         raise HTTPException(status_code=404, detail="Run not found")
     return {"message": f"Run {run_id} deleted successfully"}
-
 
 @router.delete("/runs")
 async def delete_all_runs(db: AsyncSession = Depends(get_db)):

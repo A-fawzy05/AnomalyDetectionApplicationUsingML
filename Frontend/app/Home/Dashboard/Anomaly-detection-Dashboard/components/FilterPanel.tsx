@@ -86,7 +86,7 @@ const FilterPanel = ({
       </div>
 
       <div className="divide-y divide-border-primary">
-        {/* Anomaly Types */}
+        {}
         <div>
           <button
             onClick={() => toggleSection('anomalyTypes')}
@@ -124,7 +124,7 @@ const FilterPanel = ({
           )}
         </div>
 
-        {/* Severity Levels */}
+        {}
         <div>
           <button
             onClick={() => toggleSection('severityLevels')}
@@ -162,7 +162,7 @@ const FilterPanel = ({
           )}
         </div>
 
-        {/* Suppliers */}
+        {}
         <div>
           <button
             onClick={() => toggleSection('suppliers')}

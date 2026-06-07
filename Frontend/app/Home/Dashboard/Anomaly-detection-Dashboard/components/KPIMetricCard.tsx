@@ -34,7 +34,6 @@ const KPIMetricCard = ({
     return () => clearTimeout(timer);
   }, [delay]);
 
-  // Parse numeric value for count-up
   const numericValue = typeof value === 'number'
     ? value
     : parseFloat(String(value).replace(/[^0-9.]/g, ''));

@@ -1,9 +1,8 @@
-"""Integration test for GET /health (DB connectivity + model load state)."""
+                                                                            
 
 import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
-
 
 async def test_health_reports_ok_db_and_models(client):
     resp = await client.get("/api/v1/health")

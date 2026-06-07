@@ -1,7 +1,5 @@
-"""
-Integration tests for API endpoints using DRF APIClient.
-Mocks service layer to test request/response logic independently.
-"""
+
+   
 import uuid
 import pytest
 from unittest.mock import patch, MagicMock
@@ -9,20 +7,14 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
-
 @pytest.fixture
 def client():
     return APIClient()
-
 
 @pytest.fixture
 def event_log_id():
     return str(uuid.uuid4())
 
-
-# ---------------------------------------------------------------------------
-# Performance Summary endpoint
-# ---------------------------------------------------------------------------
 @pytest.mark.django_db
 class TestPerformanceSummaryView:
     def test_missing_event_log_id_returns_400(self, client):
@@ -66,10 +58,6 @@ class TestPerformanceSummaryView:
         assert "process_efficiency_score" in data
         assert "bottleneck_count" in data
 
-
-# ---------------------------------------------------------------------------
-# Variant Summary endpoint
-# ---------------------------------------------------------------------------
 @pytest.mark.django_db
 class TestVariantSummaryView:
     def test_missing_event_log_id_returns_400(self, client):
@@ -102,10 +90,6 @@ class TestVariantSummaryView:
         assert "total_variants_detected" in response.data
         assert "conformance_fitness" in response.data
 
-
-# ---------------------------------------------------------------------------
-# Event log upload – validation test
-# ---------------------------------------------------------------------------
 @pytest.mark.django_db
 class TestEventLogUploadView:
     def test_upload_missing_file_returns_400(self, client):

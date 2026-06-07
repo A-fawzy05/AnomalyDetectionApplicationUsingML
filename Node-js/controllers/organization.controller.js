@@ -2,7 +2,7 @@ const Organization = require('../models/Organization');
 const User = require('../models/User');
 
 class OrganizationController {
-  // POST /api/org/create
+  
   static async create(req, res) {
     try {
       const { name, joinPassword, confirmPassword } = req.body;
@@ -28,7 +28,6 @@ class OrganizationController {
         });
       }
 
-      // Check if org name already exists
       const existingOrg = await Organization.findOne({ name: name.trim() });
       if (existingOrg) {
         return res.status(409).json({
@@ -37,7 +36,6 @@ class OrganizationController {
         });
       }
 
-      // Create organization with creator as admin
       const organization = new Organization({
         name: name.trim(),
         joinPassword,
@@ -51,7 +49,6 @@ class OrganizationController {
 
       await organization.save();
 
-      // Add organization to user's organizations array
       await User.findByIdAndUpdate(req.user.userId, {
         $push: {
           organizations: {
@@ -89,7 +86,6 @@ class OrganizationController {
     }
   }
 
-  // POST /api/org/join
   static async join(req, res) {
     try {
       const { name, joinPassword } = req.body;
@@ -101,7 +97,6 @@ class OrganizationController {
         });
       }
 
-      // Find organization with password field included
       const organization = await Organization.findOne({ name: name.trim() }).select('+joinPassword');
       if (!organization) {
         return res.status(404).json({
@@ -110,7 +105,6 @@ class OrganizationController {
         });
       }
 
-      // Check if user is already a member
       const isMember = organization.members.some(
         m => m.userId.toString() === req.user.userId.toString()
       );
@@ -121,7 +115,6 @@ class OrganizationController {
         });
       }
 
-      // Verify join password
       const isPasswordValid = await organization.compareJoinPassword(joinPassword);
       if (!isPasswordValid) {
         return res.status(401).json({
@@ -130,7 +123,6 @@ class OrganizationController {
         });
       }
 
-      // Add user as member
       organization.members.push({
         userId: req.user.userId,
         role: 'member',
@@ -138,7 +130,6 @@ class OrganizationController {
       });
       await organization.save();
 
-      // Add organization to user's organizations array
       await User.findByIdAndUpdate(req.user.userId, {
         $push: {
           organizations: {
@@ -167,7 +158,6 @@ class OrganizationController {
     }
   }
 
-  // GET /api/org/my-orgs
   static async getMyOrgs(req, res) {
     try {
       const organizations = await Organization.find({
@@ -203,7 +193,6 @@ class OrganizationController {
     }
   }
 
-  // PATCH /api/org/:id/run  — save the last analysis run_id on the organization
   static async updateRunId(req, res) {
     try {
       const { id } = req.params;
@@ -218,7 +207,6 @@ class OrganizationController {
         return res.status(404).json({ success: false, message: 'Organization not found' });
       }
 
-      // Only members of the org can set the run id
       const isMember = organization.members.some(
         m => m.userId.toString() === req.user.userId.toString()
       );
@@ -240,12 +228,10 @@ class OrganizationController {
     }
   }
 
-  // DELETE /api/org/:id
   static async deleteOrg(req, res) {
     try {
       const { id } = req.params;
 
-      // Find organization
       const organization = await Organization.findById(id);
       if (!organization) {
         return res.status(404).json({
@@ -254,7 +240,6 @@ class OrganizationController {
         });
       }
 
-      // Check if user is the creator/admin
       if (organization.createdBy.toString() !== req.user.userId.toString()) {
         return res.status(403).json({
           success: false,
@@ -262,13 +247,11 @@ class OrganizationController {
         });
       }
 
-      // Remove the organization reference from all users
       await User.updateMany(
         { 'organizations.organizationId': id },
         { $pull: { organizations: { organizationId: id } } }
       );
 
-      // Delete the organization
       await Organization.findByIdAndDelete(id);
 
       res.status(200).json({

@@ -1,6 +1,4 @@
-"""
-Ingester for XES event logs.
-"""
+
 
 import pm4py
 from typing import Union, IO
@@ -9,11 +7,10 @@ import tempfile
 import os
 from ingestion.base import BaseIngester
 
-
 class XESIngester(BaseIngester):
     def ingest(self, source: Union[str, IO]) -> pd.DataFrame:
         if hasattr(source, 'read'):
-            # It's a file-like object, pm4py needs a file path
+                                                              
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xes") as tmp:
                 tmp.write(source.read())
                 tmp_path = tmp.name

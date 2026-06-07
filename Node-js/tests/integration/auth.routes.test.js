@@ -1,11 +1,4 @@
-/**
- * Integration tests for the authentication flow against the dev MongoDB.
- *   signup → verify-email → login → GET /profile
- * plus duplicate-email, bad-credentials and missing-token error paths.
- *
- * The email service is mocked (no real Resend call) and connectDB is neutralised
- * so the app does not open a second connection / exit on failure.
- */
+
 jest.mock('../../config/db.config', () => jest.fn());
 jest.mock('../../services/email.service', () => ({
   sendEmailVerificationOTP: jest.fn().mockResolvedValue({}),
@@ -38,7 +31,6 @@ describe('POST /api/auth/signup → verify → login → profile', () => {
     const email = `${uniq('auth')}@example.com`;
     createdEmails.push(email);
 
-    // 1. Signup
     const signup = await request(app).post('/api/auth/signup').send({
       fullName: 'Jane Tester',
       email,
@@ -48,12 +40,10 @@ describe('POST /api/auth/signup → verify → login → profile', () => {
     expect(signup.status).toBe(201);
     expect(signup.body.data.email).toBe(email);
 
-    // Password is stored hashed, not in plaintext.
     const stored = await User.findOne({ email }).select('+password +emailVerificationOTP');
     expect(stored.password).not.toBe('password123');
     expect(stored.password.startsWith('$2')).toBe(true);
 
-    // 2. Verify email with the stored OTP
     const verify = await request(app).post('/api/auth/verify-email').send({
       email,
       otp: stored.emailVerificationOTP,
@@ -61,13 +51,11 @@ describe('POST /api/auth/signup → verify → login → profile', () => {
     expect(verify.status).toBe(200);
     expect(verify.body.data.token).toBeTruthy();
 
-    // 3. Login
     const login = await request(app).post('/api/auth/login').send({ email, password: 'password123' });
     expect(login.status).toBe(200);
     const token = login.body.data.token;
     expect(token).toBeTruthy();
 
-    // 4. Protected profile with the token
     const profile = await request(app).get('/api/auth/profile').set('Authorization', `Bearer ${token}`);
     expect(profile.status).toBe(200);
     expect(profile.body.data.email).toBe(email);

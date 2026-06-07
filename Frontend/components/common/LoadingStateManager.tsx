@@ -80,7 +80,7 @@ const LoadingStateManager = ({
       `}
     >
       <div className="flex flex-col items-center gap-6">
-        {/* Animated Logo */}
+        {}
         <div className="relative">
           <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 animate-pulse">
             <svg
@@ -106,7 +106,7 @@ const LoadingStateManager = ({
             </svg>
           </div>
           
-          {/* Spinning Ring */}
+          {}
           <div className="absolute inset-0 w-20 h-20 border-4 border-primary/20 rounded-xl" />
           <div
             className="absolute inset-0 w-20 h-20 border-4 border-primary border-t-transparent rounded-xl animate-spin"
@@ -114,7 +114,7 @@ const LoadingStateManager = ({
           />
         </div>
 
-        {/* Loading Text */}
+        {}
         <div className="text-center">
           <h3 className="font-serif font-semibold text-xl text-foreground mb-2">
             {loadingText}
@@ -124,7 +124,7 @@ const LoadingStateManager = ({
           </p>
         </div>
 
-        {/* Progress Dots */}
+        {}
         <div className="flex items-center gap-2">
           {[0, 1, 2].map((i) => (
             <div

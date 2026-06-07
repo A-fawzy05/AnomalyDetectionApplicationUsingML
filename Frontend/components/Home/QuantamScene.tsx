@@ -98,12 +98,12 @@ export const DataFlowScene: React.FC = () => {
         
         <Float rotationIntensity={0.5} floatIntensity={0.5} speed={1.5}>
           <group>
-            {/* Central Processing Core */}
+            {}
             <Box args={[1, 1, 1]} position={[0, 0, 0]}>
               <meshStandardMaterial color="#111" metalness={1} roughness={0.1} emissive="#C5A059" emissiveIntensity={0.2} />
             </Box>
             
-            {/* Orbiting Data Nodes */}
+            {}
             {[...Array(6)].map((_, i) => {
               const angle = (i / 6) * Math.PI * 2;
               const radius = 2;
@@ -113,7 +113,7 @@ export const DataFlowScene: React.FC = () => {
                     <Box args={[0.3, 0.3, 0.3]} position={[radius, 0, 0]}>
                       <meshStandardMaterial color={i % 2 === 0 ? "#4F46E5" : "#C5A059"} metalness={0.8} roughness={0.2} />
                     </Box>
-                    {/* Connection Line */}
+                    {}
                     <mesh position={[radius / 2, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
                       <cylinderGeometry args={[0.01, 0.01, radius]} />
                       <meshStandardMaterial color="#333" transparent opacity={0.5} />
@@ -123,7 +123,7 @@ export const DataFlowScene: React.FC = () => {
               );
             })}
 
-            {/* Outer Ring */}
+            {}
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <torusGeometry args={[2.5, 0.02, 16, 100]} />
               <meshStandardMaterial color="#C5A059" transparent opacity={0.3} wireframe />

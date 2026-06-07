@@ -1,13 +1,10 @@
-"""
-ORM model for case flags.
-"""
+
 
 import uuid
 from sqlalchemy import Column, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from db.models import Base
-
 
 class CaseFlag(Base):
     __tablename__ = "case_flags"

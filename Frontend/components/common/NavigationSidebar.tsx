@@ -60,7 +60,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Logo Section */}
+          {}
           <div className="flex items-center justify-between h-20 px-6 border-b border-border-primary">
             <Link href="/Home" className="flex items-center gap-3 transition-opacity hover:opacity-80">
               <div className="w-10 h-10 rounded-xl bg-nobel-gold flex items-center justify-center shadow-lg shadow-nobel-gold/20 flex-shrink-0">
@@ -113,7 +113,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
             )}
           </div>
 
-          {/* Navigation Items */}
+          {}
           <nav className="flex-1 overflow-y-auto py-6 px-4">
             <ul className="space-y-3">
               {navigationItems.map((item) => {
@@ -152,7 +152,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
                         </span>
                       )}
 
-                      {/* Tooltip for collapsed state */}
+                      {}
                       {isCollapsed && (
                         <div
                           className={`
@@ -178,7 +178,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
             </ul>
           </nav>
 
-          {/* Generate Report — members only */}
+          {}
           {teamRole === 'member' && (
             <div className="px-4 pb-4">
               <div className="border-t border-border-primary mb-3 mt-1" />
@@ -224,7 +224,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
             </div>
           )}
 
-          {/* Footer Section */}
+          {}
           <div className="border-t border-border-primary p-6 bg-bg-primary/30">
             <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
               <div className="w-10 h-10 rounded-xl bg-nobel-gold/20 flex items-center justify-center flex-shrink-0 border border-nobel-gold/30">
@@ -245,7 +245,7 @@ const NavigationSidebar = ({ isCollapsed = false, onToggleCollapse }: Navigation
         </div>
       </aside>
 
-      {/* Spacer for fixed sidebar */}
+      {}
       <div className={`${isCollapsed ? 'w-20' : 'w-60'} flex-shrink-0 transition-all duration-300 hidden`} />
     </>
   );

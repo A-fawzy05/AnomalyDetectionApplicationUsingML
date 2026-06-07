@@ -1,6 +1,4 @@
-"""
-ORM model for case results.
-"""
+
 
 import uuid
 from datetime import datetime
@@ -8,7 +6,6 @@ from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, U
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from db.models import Base
-
 
 class CaseResult(Base):
     __tablename__ = "case_results"
@@ -19,11 +16,11 @@ class CaseResult(Base):
     supplier = Column(String)
     amount = Column(Numeric(18, 4))
     currency = Column(String, default="EUR")
-    anomaly_type = Column(String)  # primary label
+    anomaly_type = Column(String)                 
     severity_score = Column(Numeric(5, 4))
     severity_label = Column(String)
     status = Column(String, nullable=False, default="Open")
-    # 'Open' | 'Investigating' | 'Resolved' | 'False Positive'
+                                                              
     if_score = Column(Numeric(10, 6))
     lstm_case_score = Column(Numeric(10, 6))
     hybrid_score = Column(Numeric(10, 6))

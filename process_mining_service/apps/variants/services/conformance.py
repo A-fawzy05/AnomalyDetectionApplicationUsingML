@@ -1,9 +1,5 @@
-"""
-Conformance checking service.
-Uses pm4py token-based replay against the reference P2P process model.
-Results are persisted to ProcessVariant.conformance_score (0–100).
-Subsequent GET requests serve precomputed scores — no recomputation on read.
-"""
+
+   
 import logging
 from typing import Optional
 
@@ -12,7 +8,6 @@ from apps.variants.models import ProcessVariant
 
 logger = logging.getLogger(__name__)
 
-# Reference P2P process flow (linear BPMN-like sequence) — used only as final fallback
 REFERENCE_P2P_SEQUENCE = [
     "Purchase Requisition Creation",
     "Budget Approval",
@@ -24,25 +19,19 @@ REFERENCE_P2P_SEQUENCE = [
     "Payment Authorization",
 ]
 
-
 def _compute_token_fitness(
     activity_sequence: list[str], reference_sequence: list[str] | None = None
 ) -> float:
-    """
-    Token-based replay fitness against a reference sequence.
-    If no reference_sequence is provided, falls back to REFERENCE_P2P_SEQUENCE.
-    Formula: fitness = (matched_activities / len(reference)) * order_ratio * 100
-    """
+
+       
     ref = reference_sequence if reference_sequence else REFERENCE_P2P_SEQUENCE
     if not ref or not activity_sequence:
         return 0.0
 
     reference_set = set(ref)
 
-    # Activities in the variant that are also in the reference
     matched = len(reference_set & set(activity_sequence))
 
-    # Order conformance: reward activities that appear in the same relative order
     in_ref = [a for a in activity_sequence if a in reference_set]
     order_score = 0
     last_ref_idx = -1
@@ -57,12 +46,9 @@ def _compute_token_fitness(
     fitness = (matched / len(ref)) * 100.0 * order_ratio
     return round(min(100.0, max(0.0, fitness)), 2)
 
-
 def _build_reference_model(event_log: EventLog):
-    """
-    Build a pm4py Petri net from ALL cases in the event log using the Inductive Miner.
-    Returns (net, im, fm) or (None, None, None) on failure.
-    """
+
+       
     try:
         import pm4py
         import pandas as pd
@@ -91,7 +77,7 @@ def _build_reference_model(event_log: EventLog):
         logger.info({"event": "reference_model_built", "event_log_id": str(event_log.id)})
         return net, im, fm
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:                                
         logger.warning(
             {
                 "event": "reference_model_build_failed",
@@ -101,7 +87,6 @@ def _build_reference_model(event_log: EventLog):
         )
         return None, None, None
 
-
 def _pm4py_conformance(
     event_log: EventLog,
     variant: ProcessVariant,
@@ -109,11 +94,8 @@ def _pm4py_conformance(
     im=None,
     fm=None,
 ) -> Optional[float]:
-    """
-    Attempt pm4py token-based replay conformance for a single variant.
-    Uses a pre-built Petri net (net/im/fm) discovered from all event log cases.
-    Returns fitness 0–100 or None on failure.
-    """
+
+       
     if net is None:
         return None
 
@@ -122,7 +104,6 @@ def _pm4py_conformance(
         import pandas as pd
         from apps.event_logs.models import P2PEvent, P2PCase
 
-        # Fetch cases belonging to this variant
         case_ids = list(
             P2PCase.objects.filter(
                 event_log=event_log, variant_id=variant.variant_id
@@ -168,7 +149,7 @@ def _pm4py_conformance(
         )
         return round(avg_fitness, 2)
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:                                
         logger.warning(
             {
                 "event": "pm4py_conformance_failed",
@@ -178,20 +159,11 @@ def _pm4py_conformance(
         )
         return None
 
-
 def compute_conformance(
     event_log: EventLog, variants: list[ProcessVariant]
 ) -> None:
-    """
-    Compute and persist conformance_score for each ProcessVariant.
 
-    Strategy:
-    1. Build a Petri net from ALL cases in the event log (using pm4py Inductive Miner).
-       This ensures the reference model uses the same activity names as the data.
-    2. For each variant, run token-based replay against this Petri net.
-    3. If pm4py fails for a variant, fall back to lightweight token fitness using
-       the most frequent variant's activity sequence as the reference.
-    """
+       
     logger.info(
         {
             "event": "conformance_computation_started",
@@ -200,22 +172,19 @@ def compute_conformance(
         }
     )
 
-    # Step 1: build reference Petri net from all cases
     net, im, fm = _build_reference_model(event_log)
 
-    # Step 2: determine fallback reference sequence from the most frequent variant
-    # variants are assumed sorted by frequency_pct descending (as inserted by discovery)
     fallback_reference: list[str] | None = None
     if variants:
         most_frequent = max(variants, key=lambda v: v.frequency_pct)
         fallback_reference = most_frequent.activity_sequence
 
     for variant in variants:
-        # Try pm4py conformance first
+                                     
         score = _pm4py_conformance(event_log, variant, net, im, fm)
 
         if score is None:
-            # Fallback: lightweight token fitness using most frequent variant as reference
+                                                                                          
             score = _compute_token_fitness(variant.activity_sequence, fallback_reference)
 
         variant.conformance_score = score

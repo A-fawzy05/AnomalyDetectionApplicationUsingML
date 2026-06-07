@@ -9,7 +9,6 @@ spec:
     kind: Deployment
     name: fastapi
   minReplicas: 2
-  # Scoring is CPU-bound (ML inference) — allow more headroom than the others.
   maxReplicas: 8
   metrics:
     - type: Resource
@@ -26,7 +25,6 @@ spec:
           value: 100
           periodSeconds: 30
     scaleDown:
-      # Models are expensive to reload, so scale down conservatively.
       stabilizationWindowSeconds: 300
       policies:
         - type: Pods

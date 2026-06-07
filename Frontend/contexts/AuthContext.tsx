@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (storedToken) {
         try {
-          // Verify token by fetching user profile
+          
           const response = await fetch('http://localhost:3001/api/auth/profile', {
             headers: {
               'Authorization': `Bearer ${storedToken}`
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setUser(data.data);
             setToken(storedToken);
           } else {
-            // Token is invalid, remove it
+            
             localStorage.removeItem('token');
           }
         } catch (error) {

@@ -19,7 +19,7 @@ export interface SectionProps {
 
 export interface Laureate {
   name: string;
-  image: string; // placeholder url
+  image: string; 
   role: string;
   desc: string;
 }
@@ -122,7 +122,7 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-bg-primary text-text-primary selection:bg-nobel-gold selection:text-white transition-colors duration-300">
       
-      {/* Navigation */}
+      {}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-bg-primary/90 backdrop-blur-md shadow-sm py-4' : 'bg-transparent py-6'}`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-4 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -168,7 +168,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
+      {}
       {menuOpen && (
         <div className="fixed inset-0 z-40 bg-bg-primary flex flex-col items-center justify-center gap-8 text-xl font-serif animate-fade-in">
             <a href="#overview" onClick={scrollToSection('overview')} className="hover:text-nobel-gold transition-colors cursor-pointer uppercase">Overview</a>
@@ -184,11 +184,11 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Hero Section */}
+      {}
       <header className="relative h-screen flex items-center justify-center overflow-hidden">
         <HeroScene />
         
-        {/* Gradient Overlay */}
+        {}
         <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_center,var(--bg-primary)_0%,transparent_100%)] opacity-80" />
 
         <div className="relative z-10 container mx-auto px-6 text-center">
@@ -214,7 +214,7 @@ const App: React.FC = () => {
       </header>
 
       <main>
-        {/* Overview */}
+        {}
         <section id="overview" className="py-24 bg-bg-secondary">
           <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
             <div className="md:col-span-4">
@@ -233,7 +233,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Process Mining */}
+        {}
         <section id="mining" className="py-24 bg-bg-primary border-t border-border-primary">
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -267,7 +267,7 @@ const App: React.FC = () => {
             </div>
         </section>
 
-        {/* Anomaly Detection */}
+        {}
         <section id="anomaly" className="py-24 bg-nobel-dark text-stone-100 overflow-hidden relative">
             <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
                 <div className="w-96 h-96 rounded-full bg-stone-600 blur-[100px] absolute top-[-100px] left-[-100px]"></div>
@@ -300,7 +300,7 @@ const App: React.FC = () => {
             </div>
         </section>
 
-        {/* Results */}
+        {}
         <section className="py-24 bg-bg-primary">
             <div className="container mx-auto px-6">
                 <div className="max-w-4xl mx-auto text-center mb-12">
@@ -315,7 +315,7 @@ const App: React.FC = () => {
             </div>
         </section>
 
-        {/* Setup & Architecture */}
+        {}
         <section id="setup" className="py-24 bg-bg-secondary border-t border-border-primary">
              <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-12">
                 <div className="md:col-span-5 relative">
@@ -354,7 +354,7 @@ const App: React.FC = () => {
              </div>
         </section>
 
-        {/* Authors */}
+        {}
         <section id="authors" className="py-24 bg-bg-secondary border-t border-border-primary">
            <div className="container mx-auto px-6">
                 <div className="text-center mb-16">

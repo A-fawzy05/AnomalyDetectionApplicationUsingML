@@ -18,7 +18,7 @@ export function useCountUp(
     const animate = (now: number) => {
       const elapsed = now - startTime;
       const progress = Math.min(Math.max(elapsed / duration, 0), 1);
-      // Ease-out cubic
+      
       const eased = 1 - Math.pow(1 - progress, 3);
       setCount(Math.round(eased * target));
 

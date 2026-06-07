@@ -1,9 +1,5 @@
-"""
-LSTM Autoencoder model wrapper.
-Scores are per-case mean squared reconstruction error.
-Scores are capped at 99.9th pct of training before threshold comparison.
-act_dim = 41 (number of unique activities in training vocab).
-"""
+
+   
 import json
 import logging
 import threading
@@ -28,8 +24,6 @@ _thresholds    = None
 _hybrid_threshold = None
 _fusion_stats  = None
 
-# Caps computed from 99.9th pct of training scores
-# Applied before threshold comparison to remove extreme outliers
 SCORE_CAPS = {
     "case":       0.049729,
     "structural": 0.025288,
@@ -37,13 +31,12 @@ SCORE_CAPS = {
 }
 
 MAX_LEN    = 10
-ACT_DIM    = 41   # number of unique activities in vocab.json
+ACT_DIM    = 41                                              
 
 NUMERIC_COLS = [
     "time_since_last_event_hours", "event_index_norm", "is_off_hours",
     "log_amount", "hour_sin", "hour_cos", "dow_sin", "dow_cos"
 ]
-
 
 def create_safe_layer(name, op):
     class SafeLayer(tf.keras.layers.Layer):
@@ -67,7 +60,6 @@ def create_safe_layer(name, op):
             return cls(**config)
     SafeLayer.__name__ = name
     return SafeLayer
-
 
 def _load():
     global _model, _seq_scaler, _vocab, _activity_cols
@@ -108,13 +100,9 @@ def _load():
             f"MAX_LEN:{MAX_LEN}, feature_dim:{len(_activity_cols) + len(NUMERIC_COLS)}"
         )
 
-
 def encode_events(events_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Encode a flat events DataFrame into per-event feature vectors.
-    Input must have columns: concept:name (activity), plus all NUMERIC_COLS.
-    Returns DataFrame with activity one-hot columns + scaled numeric columns.
-    """
+
+       
     _load()
     onehot = pd.get_dummies(events_df["activity"].astype(str), prefix="act")
     onehot = onehot.reindex(columns=_activity_cols, fill_value=0)
@@ -126,16 +114,13 @@ def encode_events(events_df: pd.DataFrame) -> pd.DataFrame:
     )
     return pd.concat([onehot, numeric_scaled], axis=1)
 
-
 def build_sequences(
     events_df: pd.DataFrame,
     encoded_df: pd.DataFrame,
     case_id_col: str = "case_id"
 ) -> tuple[np.ndarray, list, list]:
-    """
-    Group events by case, encode, pad to MAX_LEN=10.
-    Returns (padded_sequences, case_ids, lengths).
-    """
+
+       
     sequences, case_ids, lengths = [], [], []
     for case_id, g in events_df.groupby(case_id_col):
         g   = g.sort_values("timestamp")
@@ -150,18 +135,15 @@ def build_sequences(
     )
     return padded, case_ids, lengths
 
-
-INFERENCE_BATCH_SIZE = 256   # process 256 cases at a time
+INFERENCE_BATCH_SIZE = 256                                
 
 def score_sequences(
     X_seq: np.ndarray,
     lengths: list,
     case_ids: list
 ) -> pd.DataFrame:
-    """
-    Run autoencoder, compute per-case reconstruction errors, apply caps.
-    Returns DataFrame with one row per case.
-    """
+
+       
     _load()
     all_preds = []
     n = len(case_ids)
@@ -183,7 +165,6 @@ def score_sequences(
         err_struct = np.mean((x_true[:, :ACT_DIM] - x_pred[:, :ACT_DIM]) ** 2, axis=1)
         err_temp   = np.mean((x_true[:, ACT_DIM:] - x_pred[:, ACT_DIM:]) ** 2, axis=1)
 
-        # Apply caps before threshold comparison
         case_score   = float(min(np.mean(err_all),    SCORE_CAPS["case"]))
         struct_score = float(min(np.mean(err_struct),  SCORE_CAPS["structural"]))
         temp_score   = float(min(np.mean(err_temp),    SCORE_CAPS["temporal"]))
@@ -199,13 +180,9 @@ def score_sequences(
 
     return pd.DataFrame(rows)
 
-
 def assign_flags(case_scores: pd.DataFrame) -> pd.DataFrame:
-    """
-    Assign lstm_anomaly_label, maverick_buying_flag, temporal_delay_flag.
-    Maverick: structural score >= 1.5x threshold AND short case (length <= 2).
-    Temporal: temporal score >= temporal threshold.
-    """
+
+       
     _load()
     cs = case_scores.copy()
 
@@ -213,7 +190,6 @@ def assign_flags(case_scores: pd.DataFrame) -> pd.DataFrame:
         cs["lstm_case_score"] >= _thresholds["case"]
     ).astype("int8")
 
-    # Maverick: tightened to 1.5x structural threshold + very short case
     cs["maverick_buying_flag"] = (
         (cs["lstm_structural_score"] >= _thresholds["structural"] * 1.5) &
         (cs["case_length"] <= 2)
@@ -225,16 +201,13 @@ def assign_flags(case_scores: pd.DataFrame) -> pd.DataFrame:
 
     return cs
 
-
 def compute_hybrid_score(
     case_scores: pd.DataFrame,
     if_scores_z: np.ndarray,
     missing_3way_steps: np.ndarray
 ) -> pd.DataFrame:
-    """
-    Fuse IF z-scores + LSTM scores + missing phase count into hybrid_3way_score.
-    Apply hybrid_threshold to produce three_way_match_flag.
-    """
+
+       
     _load()
     cs = case_scores.copy()
 
@@ -259,19 +232,16 @@ def compute_hybrid_score(
 
     return cs
 
-
 def get_thresholds() -> dict:
     _load()
     return _thresholds
-
 
 def get_fusion_stats() -> dict:
     _load()
     return _fusion_stats
 
-
 class LSTMAutoencoderModel:
-    """Compatibility class for health check and startup."""
+                                                           
     def __init__(self):
         _load()
     def load(self, model_dir: str = None):

@@ -1,6 +1,5 @@
-"""
-Unit tests for variant analysis service functions.
-"""
+
+   
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +7,6 @@ from apps.variants.services.insights import generate_variant_insights
 from apps.variants.services.discovery import _name_variant, VARIANT_NAME_RULES
 from apps.variants.services.conformance import _compute_token_fitness, REFERENCE_P2P_SEQUENCE
 
-
-# ---------------------------------------------------------------------------
-# Insights generator tests
-# ---------------------------------------------------------------------------
 class TestGenerateVariantInsights:
     def _make_variant(self, anomaly_rate=0.0, conformance=100.0, avg_duration=5.0):
         v = MagicMock()
@@ -50,7 +45,7 @@ class TestGenerateVariantInsights:
     def test_all_issues_combined(self):
         variant = self._make_variant(anomaly_rate=20.0, conformance=70.0, avg_duration=15.0)
         insights = generate_variant_insights(variant, threshold_pct=15.0)
-        # Should have at minimum: anomaly warning, conformance warning, cycle time info
+                                                                                       
         assert len(insights) >= 3
 
     def test_insight_structure_has_required_keys(self):
@@ -64,14 +59,10 @@ class TestGenerateVariantInsights:
     def test_anomaly_rate_in_description(self):
         variant = self._make_variant(anomaly_rate=18.5)
         insights = generate_variant_insights(variant, threshold_pct=15.0)
-        # At least one insight should mention the rate
+                                                      
         all_desc = " ".join(i["description"] for i in insights)
         assert "18.5" in all_desc
 
-
-# ---------------------------------------------------------------------------
-# Variant naming tests
-# ---------------------------------------------------------------------------
 class TestNameVariant:
     def test_standard_flow(self):
         seq = [
@@ -114,14 +105,10 @@ class TestNameVariant:
         name = _name_variant(seq)
         assert "→" in name or name != ""
 
-
-# ---------------------------------------------------------------------------
-# Conformance fitness tests
-# ---------------------------------------------------------------------------
 class TestComputeTokenFitness:
     def test_perfect_match(self):
         score = _compute_token_fitness(REFERENCE_P2P_SEQUENCE)
-        assert score > 80.0  # should be close to 100
+        assert score > 80.0                          
 
     def test_empty_sequence(self):
         score = _compute_token_fitness([])
@@ -133,7 +120,7 @@ class TestComputeTokenFitness:
         assert partial_score <= full_score
 
     def test_out_of_order_penalised(self):
-        # Reverse order should score lower than correct order
+                                                             
         in_order = _compute_token_fitness(REFERENCE_P2P_SEQUENCE)
         out_of_order = _compute_token_fitness(list(reversed(REFERENCE_P2P_SEQUENCE)))
         assert out_of_order < in_order
@@ -142,10 +129,6 @@ class TestComputeTokenFitness:
         score = _compute_token_fitness(REFERENCE_P2P_SEQUENCE * 10)
         assert 0.0 <= score <= 100.0
 
-
-# ---------------------------------------------------------------------------
-# Severity distribution tests
-# ---------------------------------------------------------------------------
 class TestSeverityDistribution:
     def test_returns_required_keys(self):
         mock_log = MagicMock()

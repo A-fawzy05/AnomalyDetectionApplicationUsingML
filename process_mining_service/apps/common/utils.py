@@ -1,7 +1,5 @@
-"""
-Common shared utilities for the Process Mining Service.
-Includes JSON formatter, exception handler, and helper functions.
-"""
+
+   
 import json
 import logging
 import traceback
@@ -11,14 +9,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
-
-# ---------------------------------------------------------------------------
-# JSON structured logger
-# ---------------------------------------------------------------------------
 class JsonFormatter(logging.Formatter):
-    """Emit log records as single-line JSON for structured logging pipelines."""
 
-    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> str:                          
         log_data = {
             "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "level": record.levelname,
@@ -32,12 +25,8 @@ class JsonFormatter(logging.Formatter):
             log_data["exception"] = traceback.format_exception(*record.exc_info)
         return json.dumps(log_data)
 
-
-# ---------------------------------------------------------------------------
-# DRF custom exception handler
-# ---------------------------------------------------------------------------
 def custom_exception_handler(exc: Exception, context: dict) -> Response:
-    """Return standardised error responses for all exceptions."""
+                                                                 
     response = exception_handler(exc, context)
 
     if response is not None:
@@ -61,13 +50,12 @@ def custom_exception_handler(exc: Exception, context: dict) -> Response:
 
     return response
 
-
 def error_response(
     error_code: str,
     message: str,
     http_status: int = status.HTTP_400_BAD_REQUEST,
 ) -> Response:
-    """Helper to build a standardised error response inline from views."""
+                                                                          
     return Response(
         {"error": error_code, "message": message, "status": http_status},
         status=http_status,

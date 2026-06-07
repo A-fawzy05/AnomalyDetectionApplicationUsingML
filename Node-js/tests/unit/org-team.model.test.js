@@ -1,10 +1,4 @@
-/**
- * Unit tests for the Organization and Team join-password compare methods.
- *
- * The pre-save hook (which hashes joinPassword) only runs on .save() and is
- * exercised by the integration tests. Here we verify the compare method logic
- * against a hash we create directly.
- */
+
 const bcrypt = require('bcryptjs');
 const Organization = require('../../models/Organization');
 const Team = require('../../models/Team');

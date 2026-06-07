@@ -36,7 +36,7 @@ export default function AuthPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Verify token and redirect if valid
+      
       verifyToken();
     }
   }, []);
@@ -82,11 +82,11 @@ export default function AuthPage() {
 
       if (response.ok) {
         if (!isLogin) {
-          // Show OTP verification for signup
+          
           setShowOTP(true);
           setMessage({ type: 'success', text: data.message });
         } else {
-          // Login successful
+          
           localStorage.setItem('token', data.data.token);
           setUser(data.data.user);
           setMessage({ type: 'success', text: data.message });
@@ -203,7 +203,7 @@ export default function AuthPage() {
     <div className={`min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 ${
       theme === 'dark' ? 'bg-bg-primary' : 'bg-gray-50'
     }`}>
-      {/* Background ambient accents */}
+      {}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {theme === 'dark' ? (
           <>
@@ -219,7 +219,7 @@ export default function AuthPage() {
         theme === 'dark' ? 'bg-surface-elevated border border-border-primary' : 'bg-white border border-gray-100'
       }`}>
         
-        {/* Left Side: Image Panel */}
+        {}
         <div className="hidden lg:block relative w-1/2 flex-shrink-0 bg-black">
           <Image
             src="/auth-bg.png"
@@ -238,9 +238,9 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Right Side: Auth Form */}
+        {}
         <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 relative flex flex-col justify-center">
-          {/* Theme Toggle in Form Panel */}
+          {}
           <div className="absolute top-8 right-8">
             <button
               onClick={toggleTheme}
@@ -270,7 +270,7 @@ export default function AuthPage() {
 
           {!showOTP ? (
             <>
-              {/* Tab Toggle */}
+              {}
               <div className={`flex mb-8 p-1.5 rounded-xl transition-colors ${
                 theme === 'dark' ? 'bg-bg-primary border border-border-primary' : 'bg-gray-100 border border-transparent'
               }`}>
@@ -304,7 +304,7 @@ export default function AuthPage() {
                 </button>
               </div>
 
-              {/* Form */}
+              {}
               <form onSubmit={handleSubmit} className="space-y-5">
                 {!isLogin && (
                   <div>
@@ -418,7 +418,7 @@ export default function AuthPage() {
                 </button>
               </form>
 
-              {/* Divider */}
+              {}
               <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center">
                   <div className={`w-full border-t ${
@@ -434,7 +434,7 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {/* Google OAuth */}
+              {}
               <button
                 onClick={handleGoogleLogin}
                 className={`w-full flex items-center justify-center py-3.5 px-4 border rounded-xl text-sm font-medium transition-colors ${
@@ -453,7 +453,7 @@ export default function AuthPage() {
               </button>
             </>
           ) : (
-            /* OTP Verification */
+            
             <div className="mt-4">
               <form onSubmit={handleOTPVerification} className="space-y-5">
                 <div>
@@ -500,7 +500,7 @@ export default function AuthPage() {
             </div>
           )}
 
-          {/* Message Display */}
+          {}
           {message.text && (
             <div className={`mt-6 p-4 rounded-xl text-sm border flex items-start ${
               message.type === 'success' 
@@ -515,7 +515,7 @@ export default function AuthPage() {
             </div>
           )}
 
-          {/* Back to Login/Signup */}
+          {}
           {showOTP && (
             <div className="mt-8 text-center">
               <button

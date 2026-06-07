@@ -50,7 +50,6 @@ const organizationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash join password before saving
 organizationSchema.pre('save', async function() {
   if (!this.isModified('joinPassword')) return;
 
@@ -58,7 +57,6 @@ organizationSchema.pre('save', async function() {
   this.joinPassword = await bcrypt.hash(this.joinPassword, salt);
 });
 
-// Compare join password
 organizationSchema.methods.compareJoinPassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.joinPassword);
 };

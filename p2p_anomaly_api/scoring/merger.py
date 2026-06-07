@@ -1,7 +1,5 @@
-"""
-Score fusion: combines IF scores and LSTM scores into hybrid_3way_score.
-All z-normalization uses training statistics from fusion_stats.json.
-"""
+
+   
 import logging
 import numpy as np
 import pandas as pd
@@ -11,7 +9,6 @@ from models import lstm_autoencoder as lstm_model
 
 logger = logging.getLogger(__name__)
 
-
 def calibrate_thresholds(
     if_scores: np.ndarray,
     lstm_scores: np.ndarray,
@@ -19,25 +16,11 @@ def calibrate_thresholds(
     lstm_train_threshold: float,
     target_anomaly_rate: float = 0.05,
 ) -> tuple[float, float]:
-    """
-    Compute batch-adaptive thresholds.
 
-    Logic:
-    - Compute threshold that would flag exactly target_anomaly_rate
-      of CURRENT batch as anomalous.
-    - Take the MAX of (training threshold, batch threshold).
-      This means: never flag more than training would flag on similar data,
-      but also never flag less than target_anomaly_rate of any batch.
-    - target_anomaly_rate=0.05 means at most 5% of any batch is anomalous.
 
-    Returns:
-        (adaptive_if_threshold, adaptive_lstm_threshold)
-    """
-    # Batch-specific percentile threshold
     batch_if_threshold   = float(np.quantile(if_scores,    1.0 - target_anomaly_rate))
     batch_lstm_threshold = float(np.quantile(lstm_scores,  1.0 - target_anomaly_rate))
 
-    # Take more conservative (higher) threshold
     adaptive_if   = max(if_train_threshold,   batch_if_threshold)
     adaptive_lstm = max(lstm_train_threshold, batch_lstm_threshold)
 
@@ -48,33 +31,20 @@ def calibrate_thresholds(
     )
     return adaptive_if, adaptive_lstm
 
-
 def merge_scores(
     case_df: pd.DataFrame,
     if_scores: np.ndarray,
     lstm_scores: pd.DataFrame,
     phase_summary: pd.DataFrame,
 ) -> pd.DataFrame:
-    """
-    Merge IF scores and LSTM scores into a single case-level DataFrame.
 
-    Args:
-        case_df:       Case-level feature DataFrame (one row per case_id)
-        if_scores:     Raw IF anomaly scores from isolation_forest.predict()
-        lstm_scores:   Output of lstm_autoencoder.score_sequences()
-        phase_summary: Output of build_phase_summary() with missing_3way_steps
 
-    Returns:
-        Merged DataFrame with all scores and flags attached.
-    """
-    # Initialize result with all case_df columns to preserve vendor, amount, etc.
     if "case_id" in case_df.columns:
         result = case_df.copy()
     else:
-        # Create a fresh DataFrame with case_id as a column, preserving all original columns
+                                                                                            
         result = case_df.reset_index(drop=False)
-    
-    # Restore vendor and amount data from case_df attributes if available
+
     if hasattr(case_df, '_vendor_data') and case_df._vendor_data is not None:
         vendor_data = case_df._vendor_data
         if 'case_id' in result.columns and vendor_data.index.name == 'case_id':
@@ -89,8 +59,6 @@ def merge_scores(
         else:
             result["amount"] = amount_data.values
 
-    # Re-inject vendor frequency columns — these are NOT in train_columns so they
-    # were stripped by reindex in case_features.py; retrieve from saved attributes.
     for attr, col in (
         ('_vendor_case_freq',  'vendor_case_frequency'),
         ('_vendor_batch_freq', 'vendor_batch_frequency'),
@@ -102,15 +70,11 @@ def merge_scores(
             else:
                 result[col] = freq_data.values
 
-
-    # Attach IF scores and z-normalize using training stats
     result["if_score"]   = if_scores
     result["if_score_z"] = if_model.zscore_if(if_scores)
 
-    # Attach LSTM scores (already capped inside score_sequences)
     result = result.merge(lstm_scores, on="case_id", how="left")
 
-    # Attach phase summary for 3-way match
     result = result.merge(
         phase_summary[["case_id", "missing_3way_steps",
                        "has_pr", "has_po", "has_gr", "has_inv", "has_pay"]],
@@ -118,7 +82,6 @@ def merge_scores(
     )
     result["missing_3way_steps"] = result["missing_3way_steps"].fillna(0)
 
-    # Compute hybrid 3-way match score and flag
     result = lstm_model.compute_hybrid_score(
         case_scores        = result,
         if_scores_z        = result["if_score_z"].values,

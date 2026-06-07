@@ -1,6 +1,4 @@
-"""
-Main router for the API.
-"""
+
 
 from fastapi import APIRouter
 from api.v1.endpoints import analyze, cases, runs, health, stream, report

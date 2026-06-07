@@ -115,8 +115,6 @@ class TeamService {
 const teamService = new TeamService();
 export default teamService;
 
-// ── localStorage helpers ────────────────────────────────────────────────────
-
 export interface SubteamContext {
   teamId: string;
   teamName: string;

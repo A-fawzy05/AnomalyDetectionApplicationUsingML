@@ -1,6 +1,5 @@
-"""
-Endpoints for retrieving case results.
-"""
+\
+\
 
 from typing import Optional
 from uuid import UUID
@@ -12,7 +11,6 @@ from api.v1.schemas.response import CaseListResponse, AnomalyCase
 from api.deps import require_membership, Identity
 
 router = APIRouter()
-
 
 @router.get("/cases", response_model=CaseListResponse)
 async def get_cases(

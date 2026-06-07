@@ -9,88 +9,64 @@
 
 @layer base {
   :root {
-    /* Primary Colors */
+    
     --color-primary: #2563eb;
-    /* blue-600 */
+    
     --color-primary-foreground: #ffffff;
-    /* white */
 
-    /* Secondary Colors */
     --color-secondary: #475569;
-    /* slate-600 */
+    
     --color-secondary-foreground: #f8fafc;
-    /* slate-50 */
 
-    /* Accent Colors */
     --color-accent: #06b6d4;
-    /* cyan-500 */
+    
     --color-accent-foreground: #0f172a;
-    /* slate-900 */
 
-    /* Background Colors */
     --color-background: #0f172a;
-    /* slate-900 */
+    
     --color-foreground: #f8fafc;
-    /* slate-50 */
 
-    /* Surface Colors */
     --color-card: #1e293b;
-    /* slate-800 */
+    
     --color-card-foreground: #e2e8f0;
-    /* slate-200 */
 
     --color-popover: #1e293b;
-    /* slate-800 */
+    
     --color-popover-foreground: #e2e8f0;
-    /* slate-200 */
 
-    /* Muted Colors */
     --color-muted: #334155;
-    /* slate-700 */
+    
     --color-muted-foreground: #94a3b8;
-    /* slate-400 */
 
-    /* Border & Input */
     --color-border: #475569;
-    /* slate-600 */
+    
     --color-input: #334155;
-    /* slate-700 */
+    
     --color-ring: #06b6d4;
-    /* cyan-500 */
 
-    /* Semantic Colors */
     --color-success: #059669;
-    /* emerald-600 */
+    
     --color-success-foreground: #f0fdf4;
-    /* green-50 */
 
     --color-warning: #d97706;
-    /* amber-600 */
+    
     --color-warning-foreground: #fffbeb;
-    /* amber-50 */
 
     --color-error: #dc2626;
-    /* red-600 */
+    
     --color-error-foreground: #fef2f2;
-    /* red-50 */
 
     --color-destructive: #dc2626;
-    /* red-600 */
+    
     --color-destructive-foreground: #fef2f2;
-    /* red-50 */
 
-    /* Additional Surface Variations */
     --color-surface-elevated: #334155;
-    /* slate-700 */
+    
     --color-surface-overlay: #1e293b;
-    /* slate-800 */
 
-    /* Text Colors */
     --color-text-primary: #1a1a1a;
     --color-text-secondary: #4a4a4a;
 
-
-    /* Spacing Scale */
     --spacing-xs: 8px;
     --spacing-sm: 16px;
     --spacing-md: 24px;
@@ -100,25 +76,21 @@
     --spacing-3xl: 96px;
     --spacing-4xl: 128px;
 
-    /* Border Radius Scale */
     --radius-sm: 6px;
     --radius-md: 12px;
     --radius-lg: 18px;
     --radius-xl: 24px;
 
-    /* Shadow & Elevation */
     --shadow-glow: 0 0 0 1px rgba(148, 163, 184, 0.1);
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.5);
     --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.6);
 
-    /* Animation Timing */
     --transition-fast: 200ms;
     --transition-base: 250ms;
     --transition-slow: 300ms;
 
-    /* Z-Index Scale */
     --z-base: 0;
     --z-card: 10;
     --z-dropdown: 100;
@@ -193,7 +165,6 @@
     letter-spacing: 0.025em;
   }
 
-  /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -211,18 +182,15 @@
     @apply bg-accent;
   }
 
-  /* Smooth Scrolling */
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
   }
 
-  /* Focus Visible */
   *:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Selection */
   ::selection {
     @apply bg-accent text-accent-foreground;
   }
@@ -258,7 +226,6 @@
   --color-nobel-dark: #1a1a1a;
   --color-nobel-cream: #F9F8F4;
 
-  /* Dark Mode Overrides */
   --color-bg-primary: var(--bg-primary, #F9F8F4);
   --color-text-primary: var(--text-primary, #1a1a1a);
   --color-bg-secondary: var(--bg-secondary, #FFFFFF);

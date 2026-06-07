@@ -1,10 +1,4 @@
-"""
-Integration tests for the real-time append endpoints:
-  POST /runs/{run_id}/append        (JSON events)
-  POST /runs/{run_id}/append/file   (file upload)
 
-Each test uses its own ``fresh_run`` because appending mutates the run.
-"""
 
 import uuid
 
@@ -13,7 +7,6 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]
 
 API = "/api/v1"
-
 
 async def test_append_json_adds_new_case(fresh_run, client):
     payload = {
@@ -41,20 +34,18 @@ async def test_append_json_adds_new_case(fresh_run, client):
     resp = await client.post(f"{API}/runs/{fresh_run}/append", json=payload)
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # AppendResponse shape.
+                           
     for key in ("appended_cases", "new_cases", "updated_cases", "new_anomalies",
                 "updated_summary", "process_flow_map", "real_time_feed"):
         assert key in body
     assert body["appended_cases"] == 1
     assert body["new_cases"] == 1
-    # Summary recomputed over all cases: original 45 + 1 new.
+                                                             
     assert body["updated_summary"]["total_cases"] == 46
-
 
 async def test_append_empty_events_returns_422(fresh_run, client):
     resp = await client.post(f"{API}/runs/{fresh_run}/append", json={"events": []})
     assert resp.status_code == 422
-
 
 async def test_append_unknown_run_returns_404(client):
     payload = {"events": [{
@@ -63,9 +54,8 @@ async def test_append_unknown_run_returns_404(client):
     resp = await client.post(f"{API}/runs/{uuid.uuid4()}/append", json=payload)
     assert resp.status_code == 404
 
-
 async def test_append_file_upserts_existing_cases(fresh_run, client, csv_fixture):
-    # Re-uploading the same 45 cases should update in place, not add new ones.
+                                                                              
     with open(csv_fixture, "rb") as f:
         resp = await client.post(
             f"{API}/runs/{fresh_run}/append/file",

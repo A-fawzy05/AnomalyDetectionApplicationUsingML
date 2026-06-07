@@ -1,8 +1,5 @@
-"""
-OCEL2 JSON ingester — memory-efficient single-pass design.
-Limits peak memory by processing events in streaming fashion
-and using only essential lookup structures.
-"""
+
+   
 import logging
 from io import IOBase
 from typing import Union
@@ -15,7 +12,7 @@ from ingestion.base import BaseIngester
 
 logger = logging.getLogger(__name__)
 
-MAX_EVENTS = 50_000   # safety cap — reject files larger than this
+MAX_EVENTS = 50_000                                               
 
 class OCEL2Ingester(BaseIngester):
 
@@ -39,11 +36,9 @@ class OCEL2Ingester(BaseIngester):
                 f'Split the file into smaller chunks.'
             )
 
-        # ── Step 1: Object Graph and Attributes ─────────────────────────
         po_attrs   = {}
         mat_attrs  = {}
-        
-        # Build undirected graph of object relationships
+
         obj_graph = defaultdict(list)
 
         for obj in objects_raw:
@@ -80,8 +75,6 @@ class OCEL2Ingester(BaseIngester):
                     'amount':   price * qty if qty > 0 else price,
                 }
 
-        # BFS to map EVERY object to all reachable Purchase Orders
-        # This handles PR -> Quotation -> PO, Invoice -> PO, etc.
         obj_to_pos = defaultdict(set)
         for obj_id in list(obj_graph.keys()):
             if obj_id.startswith('purchase_order:'):
@@ -100,7 +93,6 @@ class OCEL2Ingester(BaseIngester):
                         visited.add(neighbor)
                         queue.append(neighbor)
 
-        # ── Step 2: Build Rows ──────────────────────────────────────────
         rows = []
         no_po_count = 0
 
@@ -115,16 +107,13 @@ class OCEL2Ingester(BaseIngester):
             }
             resource = ev_attrs.get('resource', ev_attrs.get('ocel:resource', ''))
 
-            # Resolve PO IDs for this event
-            # Priority 1: Direct link to purchase_order(s)
             direct_pos = set(
                 r['objectId'] for r in event.get('relationships', [])
                 if r.get('objectId', '').startswith('purchase_order:')
             )
             
             po_ids = direct_pos
-            
-            # Priority 2: If no direct links, find all POs reachable from related objects
+
             if not po_ids:
                 po_ids = set()
                 for r in event.get('relationships', []):
@@ -134,11 +123,10 @@ class OCEL2Ingester(BaseIngester):
             
             if not po_ids:
                 no_po_count += 1
-                continue   # SKIP entirely to avoid case explosion
+                continue                                          
 
-            # Add a row for EACH PO this event belongs to
             for po_id in po_ids:
-                # Retrieve the PO attributes
+                                            
                 po = po_attrs.get(po_id, {})
                 vendor      = po.get('vendor', '')
                 doc_type    = po.get('doc_type', '')
@@ -146,7 +134,6 @@ class OCEL2Ingester(BaseIngester):
                 purch_org   = po.get('purch_org', '')
                 release     = po.get('release', '')
 
-                # Resolve amount from material objects
                 amount   = 0.0
                 quantity = 0.0
                 for mat_id in po.get('mat_ids', []):
@@ -204,7 +191,6 @@ class OCEL2Ingester(BaseIngester):
             f'(skipped {no_po_count} orphan events)'
         )
 
-        # Safety check — if case count exploded, something went wrong
         if n_cases > 5000:
             logger.error(
                 f'Case count {n_cases} is suspiciously high. '
@@ -225,13 +211,10 @@ class OCEL2Ingester(BaseIngester):
             raise ValueError("Invalid OCEL2: 'events' array is empty.")
 
     def _extract_attrs(self, attributes: list) -> dict:
-        """
-        Extract first non-empty value per attribute name.
-        Sorts by time ascending to get the earliest value.
-        Memory-efficient: does not retain all versions.
-        """
+
+           
         result = {}
-        seen   = {}   # {name: earliest_time}
+        seen   = {}                          
 
         for a in attributes:
             name  = a.get('name', '')

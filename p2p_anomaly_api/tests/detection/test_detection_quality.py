@@ -1,19 +1,4 @@
-"""
-Detection-quality evaluation — the centerpiece of the evaluation report.
 
-Runs the *real* anomaly-detection pipeline (the exact functions invoked by
-POST /analyze, minus the DB writes) on the committed, labeled synthetic dataset
-and measures how well it recovers the injected anomalies.
-
-It does two things:
-  1. Emits ``tests/detection/_last_run_metrics.md`` and ``.json`` — the numbers the
-     human-written evaluation report quotes (per-type recall/precision/F1, an 8x8
-     confusion matrix, the normal false-positive rate, severity distribution).
-  2. Makes a few *lenient, explicit* assertions so a regression or a weak anomaly
-     type shows up as a visible failure with the numbers attached — not a crash.
-
-Requires the committed artifacts in artifacts/. No DB needed.
-"""
 
 import os
 import sys
@@ -21,21 +6,16 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import _ground_truth as gt  # noqa: E402
+import _ground_truth as gt              
 
 pytestmark = pytest.mark.detection
 
-# Lenient floors/ceilings. These are intentionally well below the observed values
-# so the suite stays green run-to-run; the *reported* numbers (the .md artifact)
-# are what the evaluation write-up interprets. Tightening these is a deliberate
-# decision the report can recommend.
-MIN_OVERALL_DETECTION = 0.60      # catch ≥60% of injected anomalies overall
-MAX_NORMAL_FP_RATE = 0.40         # ≤40% of clean cases flagged
-MIN_TYPES_WITH_ANY_DETECTION = 5  # at least 5 of 7 types detected at all
-
+MIN_OVERALL_DETECTION = 0.60                                                
+MAX_NORMAL_FP_RATE = 0.40                                      
+MIN_TYPES_WITH_ANY_DETECTION = 5                                         
 
 def _run_pipeline(csv_path):
-    """Replicate the POST /analyze scoring pipeline without touching the DB."""
+                                                                               
     from api.v1.endpoints.analyze import build_phase_summary
     from features import sequence_features
     from features.case_features import build_case_features
@@ -68,22 +48,19 @@ def _run_pipeline(csv_path):
     labeled = apply_labels(merged, df, if_threshold=adaptive_if, lstm_threshold=adaptive_lstm)
     return labeled
 
-
 @pytest.fixture(scope="module")
 def evaluation(csv_fixture):
     labeled = _run_pipeline(csv_fixture)
     metrics = gt.score_predictions(labeled)
     sev_counts = labeled["severity_label"].value_counts().to_dict()
     artifacts = gt.write_artifacts(metrics, gt_out_dir(), severity_counts=sev_counts)
-    # Echo the report so it shows up under `pytest -s`.
+                                                       
     print("\n" + gt.render_markdown(metrics, sev_counts))
     print(f"\n[detection] metrics written to: {artifacts['markdown']}")
     return metrics, sev_counts, artifacts
 
-
 def gt_out_dir():
     return os.path.dirname(os.path.abspath(__file__))
-
 
 def test_dataset_has_expected_support(evaluation):
     metrics, _, _ = evaluation
@@ -93,12 +70,10 @@ def test_dataset_has_expected_support(evaluation):
     for t, m in metrics["per_type"].items():
         assert m["support"] == 5, f"{t} should have 5 injected cases"
 
-
 def test_metrics_artifact_written(evaluation):
     _, _, artifacts = evaluation
     assert os.path.exists(artifacts["markdown"])
     assert os.path.exists(artifacts["json"])
-
 
 def test_overall_detection_rate_meets_floor(evaluation):
     metrics, _, _ = evaluation
@@ -107,14 +82,12 @@ def test_overall_detection_rate_meets_floor(evaluation):
         f"< floor {MIN_OVERALL_DETECTION:.0%} — see _last_run_metrics.md"
     )
 
-
 def test_normal_false_positive_rate_within_ceiling(evaluation):
     metrics, _, _ = evaluation
     assert metrics["normal_false_positive_rate"] <= MAX_NORMAL_FP_RATE, (
         f"normal FP rate {metrics['normal_false_positive_rate']:.1%} "
         f"> ceiling {MAX_NORMAL_FP_RATE:.0%} — see _last_run_metrics.md"
     )
-
 
 def test_most_anomaly_types_detected(evaluation):
     metrics, _, _ = evaluation

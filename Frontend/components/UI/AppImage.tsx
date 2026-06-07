@@ -40,7 +40,6 @@ function AppImage({
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
 
-    // More reliable external URL detection
     const isExternal = imageSrc.startsWith('http://') || imageSrc.startsWith('https://');
     const isLocal = imageSrc.startsWith('/') || imageSrc.startsWith('./') || imageSrc.startsWith('data:');
 
@@ -59,7 +58,6 @@ function AppImage({
 
     const commonClassName = `${className} ${isLoading ? 'bg-gray-200' : ''} ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`;
 
-    // For external URLs or when in doubt, use regular img tag
     if (isExternal && !isLocal) {
         const imgStyle: React.CSSProperties = {};
 
@@ -97,7 +95,6 @@ function AppImage({
         );
     }
 
-    // For local images and data URLs, use Next.js Image component
     const imageProps = {
         src: imageSrc,
         alt,

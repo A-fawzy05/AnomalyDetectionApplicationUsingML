@@ -35,10 +35,6 @@ spec:
                 name: fastapi-config
             - secretRef:
                 name: fastapi-secret
-          # Heavier footprint: TensorFlow + the LSTM/IsolationForest artifacts
-          # are loaded into memory at startup. The pre-trained models are baked
-          # into the image (read-only), so each replica is stateless → safe to
-          # scale horizontally.
           resources:
             requests:
               cpu: 500m
@@ -46,25 +42,18 @@ spec:
             limits:
               cpu: "2"
               memory: 2560Mi
-          # --- Self-healing probes ---
-          # startup: VERY generous — model loading can take minutes on a cold
-          # start (60 * 5s = up to 5 minutes) before liveness/readiness apply.
           startupProbe:
             httpGet:
               path: /health
               port: 8001
             periodSeconds: 5
             failureThreshold: 60
-          # liveness: TCP only — just "is the process alive?". Deliberately NOT
-          # /health so a transient DB outage doesn't cause restart loops.
           livenessProbe:
             tcpSocket:
               port: 8001
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 3
-          # readiness: full /health (db_connected + models_loaded). If the DB
-          # drops, the pod is removed from the Service but NOT restarted.
           readinessProbe:
             httpGet:
               path: /health

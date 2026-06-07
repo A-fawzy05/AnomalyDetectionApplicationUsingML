@@ -1,10 +1,4 @@
-/**
- * Shared helpers for the integration tier.
- *
- * Not a test file (no .test.js suffix) so Jest will not execute it directly.
- * Provides a guarded MongoDB connection (so the suite soft-skips when the dev DB
- * is unreachable), unique-name generation, and a quick authenticated-user factory.
- */
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
@@ -18,7 +12,7 @@ async function connectTestDb() {
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
     return true;
   } catch (err) {
-    // eslint-disable-next-line no-console
+    
     console.warn(`[integration] MongoDB unreachable — skipping integration tests: ${err.message}`);
     return false;
   }
@@ -28,7 +22,6 @@ function uniq(prefix) {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
 }
 
-/** Create a verified user directly in the DB and return { user, token }. */
 async function makeAuthUser(role = 'admin') {
   const user = await User.create({
     fullName: 'Test User',

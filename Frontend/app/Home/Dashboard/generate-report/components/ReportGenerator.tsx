@@ -105,7 +105,7 @@ const ReportGenerator = () => {
         <GlobalHeader isLoading={isGenerating} />
         <div className="p-8">
 
-          {/* Page header row */}
+          {}
           <div className="flex items-start justify-between mb-8">
             <div>
               <p className="text-sm text-text-secondary mb-1">{ctx?.subteamName || 'Subteam'}</p>
@@ -136,7 +136,7 @@ const ReportGenerator = () => {
             </div>
           </div>
 
-          {/* No run uploaded */}
+          {}
           {!ctx?.fastApiRunId && (
             <div className="flex items-center gap-2 text-sm text-text-secondary border border-border-primary rounded-md px-4 py-3 bg-bg-secondary">
               <AlertCircle size={15} />
@@ -144,7 +144,7 @@ const ReportGenerator = () => {
             </div>
           )}
 
-          {/* Generating spinner */}
+          {}
           {isGenerating && (
             <div className="flex items-center gap-3 text-sm text-text-secondary py-12 justify-center">
               <Loader2 size={18} className="animate-spin" />
@@ -152,7 +152,7 @@ const ReportGenerator = () => {
             </div>
           )}
 
-          {/* Error */}
+          {}
           {generateError && !isGenerating && (
             <div className="flex items-start gap-2 text-sm text-red-400 border border-red-500/20 bg-red-500/5 rounded-md px-4 py-3">
               <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
@@ -160,14 +160,14 @@ const ReportGenerator = () => {
             </div>
           )}
 
-          {/* Report */}
+          {}
           {report && !isGenerating && (
             <div className="flex flex-col gap-3">
-              {/* Toolbar */}
+              {}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-text-secondary">{report.length.toLocaleString()} characters</span>
                 <div className="flex items-center gap-2">
-                  {/* Show button unless we've confirmed admin has NO Telegram */}
+                  {}
                   {!adminTelegramLoading && adminTelegram?.hasTelegram === false ? (
                     <span className="text-xs text-text-secondary">Admin has no Telegram linked</span>
                   ) : (
@@ -191,7 +191,7 @@ const ReportGenerator = () => {
                 </div>
               </div>
 
-              {/* Report body */}
+              {}
               <pre
                 ref={reportRef}
                 className="bg-bg-secondary border border-border-primary rounded-md p-5 text-sm font-mono text-text-primary overflow-auto max-h-[65vh] whitespace-pre-wrap leading-relaxed"
@@ -201,7 +201,7 @@ const ReportGenerator = () => {
             </div>
           )}
 
-          {/* Empty state */}
+          {}
           {!report && !isGenerating && !generateError && ctx?.fastApiRunId && (
             <div className="text-sm text-text-secondary text-center py-16">
               Select a severity filter and click Generate Report.

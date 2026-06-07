@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const config = require('./config/env.config');
 const connectDB = require('./config/db.config');
 
-// Import routes
 const authRoutes = require('./routes/auth.routes');
 const orgRoutes = require('./routes/organization.routes');
 const teamRoutes = require('./routes/team.routes');
@@ -12,13 +11,10 @@ const anomalyRoutes = require('./routes/anomaly.routes');
 
 const app = express();
 
-// Connect to database
 connectDB();
 
-// Security middleware
 app.use(helmet());
 
-// CORS configuration
 app.use(cors({
   origin: config.FRONTEND_URL,
   credentials: true,
@@ -26,11 +22,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -39,13 +33,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/org', orgRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/anomaly', anomalyRoutes);
 
-// 404 handler
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
@@ -53,7 +45,6 @@ app.use((req, res, next) => {
   });
 });
 
-// Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
   

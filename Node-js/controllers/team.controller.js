@@ -3,7 +3,7 @@ const User = require('../models/User');
 const https = require('https');
 
 class TeamController {
-  // POST /api/teams/create
+  
   static async create(req, res) {
     try {
       const { name, joinPassword, confirmPassword } = req.body;
@@ -43,7 +43,6 @@ class TeamController {
     }
   }
 
-  // POST /api/teams/join
   static async join(req, res) {
     try {
       const { name, joinPassword } = req.body;
@@ -80,7 +79,6 @@ class TeamController {
     }
   }
 
-  // GET /api/teams/my-teams
   static async getMyTeams(req, res) {
     try {
       const teams = await Team.find({ 'members.userId': req.user.userId })
@@ -113,7 +111,6 @@ class TeamController {
     }
   }
 
-  // DELETE /api/teams/:id
   static async deleteTeam(req, res) {
     try {
       const team = await Team.findById(req.params.id);
@@ -135,7 +132,6 @@ class TeamController {
     }
   }
 
-  // POST /api/teams/:id/subteams
   static async createSubteam(req, res) {
     try {
       const { name } = req.body;
@@ -169,7 +165,6 @@ class TeamController {
     }
   }
 
-  // DELETE /api/teams/:id/subteams/:subId
   static async deleteSubteam(req, res) {
     try {
       const team = await Team.findById(req.params.id);
@@ -194,7 +189,6 @@ class TeamController {
     }
   }
 
-  // PATCH /api/teams/:id/subteams/:subId/data
   static async updateSubteamData(req, res) {
     try {
       const { fastApiRunId, djangoEventLogId } = req.body;
@@ -226,7 +220,6 @@ class TeamController {
     }
   }
 
-  // GET /api/teams/:id/subteams/:subId
   static async getSubteam(req, res) {
     try {
       const team = await Team.findById(req.params.id).select('name members subteams');
@@ -258,7 +251,6 @@ class TeamController {
     }
   }
 
-  // GET /api/teams/:id/admin-telegram
   static async getAdminTelegram(req, res) {
     try {
       const team = await Team.findById(req.params.id).select('members');
@@ -287,7 +279,6 @@ class TeamController {
     }
   }
 
-  // POST /api/teams/:id/send-telegram-report
   static async sendTelegramReport(req, res) {
     try {
       const { reportMarkdown, teamName, subteamName, senderName } = req.body;

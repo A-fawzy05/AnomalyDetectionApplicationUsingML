@@ -1,7 +1,4 @@
-/**
- * Light unit checks for the external-integration services. We do NOT hit any
- * network here — we only verify the modules construct and expose their contract.
- */
+
 const emailService = require('../../services/email.service');
 const googleService = require('../../services/google.service');
 

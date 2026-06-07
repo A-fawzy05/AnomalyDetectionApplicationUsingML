@@ -1,6 +1,4 @@
-"""
-Structured logging configuration.
-"""
+
 
 import logging
 import sys

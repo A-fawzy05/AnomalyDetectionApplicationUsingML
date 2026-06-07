@@ -1,13 +1,9 @@
-"""
-Event Log models: stores uploaded event log files and parsed P2P cases/events.
-Supports XES, CSV, and OCEL JSON formats.
-"""
+
+   
 import uuid
 from django.db import models
 
-
 class EventLog(models.Model):
-    """Uploaded event log file — can be XES, CSV, or OCEL JSON."""
 
     class Format(models.TextChoices):
         XES = "XES", "XES"
@@ -30,7 +26,7 @@ class EventLog(models.Model):
     )
     case_count = models.IntegerField(null=True, blank=True)
     event_count = models.IntegerField(null=True, blank=True)
-    # Optional SLA threshold (days) per log — overrides global default
+                                                                      
     sla_threshold_days = models.IntegerField(null=True, blank=True)
     error_message = models.TextField(null=True, blank=True)
 
@@ -41,9 +37,7 @@ class EventLog(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.format}) — {self.status}"
 
-
 class P2PCase(models.Model):
-    """One procurement case / trace from an event log."""
 
     class CaseStatus(models.TextChoices):
         IN_PROGRESS = "In Progress", "In Progress"
@@ -64,7 +58,7 @@ class P2PCase(models.Model):
     )
     activity_count = models.IntegerField(default=0)
     sla_breached = models.BooleanField(default=False)
-    # Reference to discovered variant (set after variant discovery)
+                                                                   
     variant_id = models.IntegerField(null=True, blank=True, db_index=True)
 
     class Meta:
@@ -75,9 +69,7 @@ class P2PCase(models.Model):
     def __str__(self) -> str:
         return f"{self.case_id} ({self.event_log_id})"
 
-
 class P2PEvent(models.Model):
-    """One activity event within a P2P case."""
 
     case = models.ForeignKey(
         P2PCase, on_delete=models.CASCADE, related_name="events"
@@ -85,7 +77,7 @@ class P2PEvent(models.Model):
     activity = models.CharField(max_length=255, db_index=True)
     timestamp = models.DateTimeField(db_index=True)
     resource = models.CharField(max_length=255, null=True, blank=True)
-    # Time elapsed since the previous event in the same case (days)
+                                                                   
     duration_days = models.FloatField(null=True, blank=True)
     attributes = models.JSONField(default=dict, blank=True)
 

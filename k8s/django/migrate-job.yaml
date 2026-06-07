@@ -1,6 +1,3 @@
-# Runs Django migrations ONCE, before/independently of the Deployment, so that
-# scaling the web Deployment up/down never races multiple `migrate` processes.
-# Re-run with: kubectl delete job django-migrate -n p2p && kubectl apply -f this
 apiVersion: batch/v1
 kind: Job
 metadata:

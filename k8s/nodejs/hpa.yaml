@@ -24,7 +24,6 @@ spec:
           type: Utilization
           averageUtilization: 80
   behavior:
-    # React fast to load spikes, but scale down slowly to avoid flapping.
     scaleUp:
       stabilizationWindowSeconds: 0
       policies:

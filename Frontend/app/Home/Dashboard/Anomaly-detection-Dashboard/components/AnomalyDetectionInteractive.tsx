@@ -36,7 +36,6 @@ interface FilterOption { id: string; label: string; count: number; }
 const FASTAPI = 'http://localhost:8001/api/v1';
 const NODEJS  = 'http://localhost:3001/api/teams';
 
-// Derive severity from score — never trust the API string which can be inconsistent
 function scoreToSeverity(score: number): 'Critical' | 'High' | 'Medium' | 'Low' {
   if (score >= 0.9) return 'Critical';
   if (score >= 0.6) return 'High';
@@ -98,7 +97,6 @@ function mapRunToState(data: any) {
     anomalyCount: p.anomalies ?? 0, totalCases: p.total_cases ?? 0,
   }));
 
-  // Build filter options from mapped anomalyCases (so IDs always match severityLabel)
   const typeCounts: Record<string, number> = {};
   const severityCounts: Record<string, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
   const supplierCounts: Record<string, number> = {};
@@ -109,7 +107,7 @@ function mapRunToState(data: any) {
   });
 
   const anomalyTypeOptions: FilterOption[] = Object.entries(typeCounts).map(([label, count]) => ({ id: label, label, count }));
-  // Fixed order: Critical → High → Medium → Low, exclude zeros
+  
   const severityLevelOptions: FilterOption[] = SEVERITY_ORDER
     .filter(s => severityCounts[s] > 0)
     .map(s => ({ id: s, label: s, count: severityCounts[s] }));
@@ -163,8 +161,7 @@ const AnomalyDetectionInteractive = () => {
   }, [dateRange]);
 
   async function fetchData(runId: string, isReplace = false, silent = false) {
-    // Silent refresh (used by append while Live) skips the full-page loader so
-    // the Live Telemetry panel stays mounted and ramps to the new real value.
+
     if (!silent) setDataLoading(true);
     try {
       const res = await fetch(`${FASTAPI}/runs/${runId}`);
@@ -174,7 +171,6 @@ const AnomalyDetectionInteractive = () => {
       setDashData(mapped);
       setCurrentPage(1);
 
-      // Fire real notifications
       if (isReplace) {
         showToast({ type: 'success', title: 'Dashboard updated', message: 'Dataset replaced — analysis refreshed' });
       }
@@ -194,7 +190,7 @@ const AnomalyDetectionInteractive = () => {
     setIsUploading(true);
     setUploadError(null);
     try {
-      // 1. FastAPI
+      
       const faForm = new FormData();
       faForm.append('file', file);
       const faRes = await fetch(`${FASTAPI}/analyze`, { method: 'POST', body: faForm });
@@ -202,7 +198,6 @@ const AnomalyDetectionInteractive = () => {
       const faData = await faRes.json();
       const fastApiRunId: string = faData.run_id;
 
-      // 2. Django
       const djForm = new FormData();
       djForm.append('file', file);
       djForm.append('name', `${ctx.subteamName} — ${file.name}`);
@@ -211,14 +206,12 @@ const AnomalyDetectionInteractive = () => {
       const djData = await djRes.json();
       const djangoEventLogId: string = djData.id;
 
-      // 3. Save to subteam
       await fetch(`${NODEJS}/${ctx.teamId}/subteams/${ctx.subteamId}/data`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ fastApiRunId, djangoEventLogId }),
       });
 
-      // 4. Update localStorage + state
       updateSubteamContextIds(fastApiRunId, djangoEventLogId);
       setCtx(prev => prev ? { ...prev, fastApiRunId, djangoEventLogId } : prev);
       await fetchData(fastApiRunId, true);
@@ -239,8 +232,7 @@ const AnomalyDetectionInteractive = () => {
       form.append('file', file);
       const res = await fetch(`${FASTAPI}/runs/${ctx.fastApiRunId}/append/file`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Silent refresh while Live keeps the telemetry chart mounted so it ramps
-      // smoothly to the new real values instead of blanking on a loading screen.
+
       await fetchData(ctx.fastApiRunId, false, isLive);
       showToast({ type: 'success', title: 'Data appended', message: 'Dashboard refreshed' });
     } catch (err) {
@@ -268,10 +260,8 @@ const AnomalyDetectionInteractive = () => {
 
   if (!isHydrated) return <DashboardLoadingScreen dashboardName="Anomaly Detection Dashboard" isLoading={true} variant="anomaly" />;
 
-  // ── Data loading ─────────────────────────────────────────────────────────
   if (dataLoading) return <DashboardLoadingScreen dashboardName="Anomaly Detection Dashboard" isLoading={true} variant="anomaly" />;
 
-  // ── Upload panel (no run ID, or fetch failed) ─────────────────────────────
   if (!ctx?.fastApiRunId || !dashData) {
     return (
       <div className="min-h-screen bg-bg-primary text-text-primary">
@@ -324,7 +314,7 @@ const AnomalyDetectionInteractive = () => {
       <main className={`transition-all duration-base ${isSidebarCollapsed ? 'ml-20' : 'ml-60'}`}>
         <GlobalHeader onRefresh={handleRefresh} isLoading={isLoading || dataLoading} dateRange={dateRange} onDateRangeChange={setDateRange} />
         <div className="p-8">
-          {/* Header */}
+          {}
           <div className="mb-8 flex items-start justify-between opacity-0 animate-fade-in-up" style={{ animationFillMode: 'forwards' }}>
             <div>
               <p className="text-sm text-text-secondary mb-1">{ctx.subteamName}</p>
@@ -332,7 +322,7 @@ const AnomalyDetectionInteractive = () => {
               <p className="font-sans text-base text-text-secondary">Real-time monitoring for procurement irregularities</p>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              {/* Live toggle */}
+              {}
               <button
                 onClick={() => setIsLive(v => !v)}
                 title={isLive ? 'Stop live telemetry' : 'Start live telemetry'}
@@ -347,13 +337,13 @@ const AnomalyDetectionInteractive = () => {
                   : <Activity size={15} />}
                 {isLive ? 'Live' : 'Go Live'}
               </button>
-              {/* Append button */}
+              {}
               <input ref={appendInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAppend(f); e.target.value = ''; }} />
               <button onClick={() => appendInputRef.current?.click()} disabled={isAppending} title="Append data to this run" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary disabled:opacity-50">
                 {isAppending ? <span className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" /> : <PlusCircle size={15} />}
                 Append
               </button>
-              {/* Re-upload */}
+              {}
               <input ref={fileInputRef} type="file" accept=".csv,.xes,.json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
               <button onClick={() => fileInputRef.current?.click()} disabled={isUploading} title="Replace dataset" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition-colors border-border-primary text-text-secondary hover:text-text-primary hover:bg-bg-secondary disabled:opacity-50">
                 {isUploading ? <span className="w-4 h-4 border-2 border-text-secondary/30 border-t-text-secondary rounded-full animate-spin" /> : <Upload size={15} />}
@@ -362,10 +352,10 @@ const AnomalyDetectionInteractive = () => {
             </div>
           </div>
 
-          {/* Live Telemetry Panel */}
+          {}
           <LiveTelemetryPanel isLive={isLive} anomalyRate={kpiData.anomalyRate} anomalousCases={kpiData.anomalousCases} />
 
-          {/* KPI Cards */}
+          {}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <KPIMetricCard title="Total Cases" value={kpiData.totalCases.toLocaleString()} trend={kpiData.trends.totalCases} trendLabel="vs last period" icon="DocumentTextIcon" sparklineData={kpiData.sparklines.totalCases} status="neutral" delay={0} isLive={isLive} />
             <KPIMetricCard title="Anomalous Cases" value={kpiData.anomalousCases.toLocaleString()} trend={kpiData.trends.anomalousCases} trendLabel="vs last period" icon="ExclamationTriangleIcon" sparklineData={kpiData.sparklines.anomalousCases} status="error" delay={100} isLive={isLive} />
@@ -373,7 +363,7 @@ const AnomalyDetectionInteractive = () => {
             <KPIMetricCard title="Avg Processing Time" value={kpiData.avgProcessingTime} trend={kpiData.trends.avgProcessingTime} trendLabel="vs last period" icon="ClockIcon" sparklineData={kpiData.sparklines.avgProcessingTime} status="success" delay={300} isLive={isLive} />
           </div>
 
-          {/* Main Content Grid */}
+          {}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-3">
               <FilterPanel
@@ -425,7 +415,7 @@ const AnomalyDetectionInteractive = () => {
                   </table>
                 </div>
 
-                {/* Pagination */}
+                {}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-4 py-3 border-t border-border-primary">
                     <span className="text-xs text-text-secondary">
@@ -480,7 +470,7 @@ const AnomalyDetectionInteractive = () => {
             </div>
           </div>
 
-          {/* Process Map */}
+          {}
           <div className="mt-6">
             <ProcessMapVisualization
               nodes={processNodes}

@@ -1,7 +1,4 @@
-/**
- * Unit tests for services/jwt.service.js — token signing/verification.
- * Pure logic; no DB, no network.
- */
+
 const jwt = require('jsonwebtoken');
 const jwtService = require('../../services/jwt.service');
 const config = require('../../config/env.config');

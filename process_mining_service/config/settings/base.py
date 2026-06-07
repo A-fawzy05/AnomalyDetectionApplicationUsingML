@@ -1,7 +1,7 @@
-"""
-Base settings for the Process Mining Service.
-All secrets and environment-specific config are loaded from environment variables.
-"""
+\
+\
+\
+   
 import os
 from pathlib import Path
 from decouple import config, Csv
@@ -14,9 +14,6 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
-# ---------------------------------------------------------------------------
-# Application definition
-# ---------------------------------------------------------------------------
 DJANGO_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -65,9 +62,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# ---------------------------------------------------------------------------
-# Database
-# ---------------------------------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -85,22 +79,13 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ---------------------------------------------------------------------------
-# Static files
-# ---------------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# ---------------------------------------------------------------------------
-# Media files (uploaded event logs)
-# ---------------------------------------------------------------------------
 MEDIA_URL = "/media/"
 MEDIA_ROOT = config("MEDIA_ROOT", default=str(BASE_DIR / "mediafiles"))
 
-# ---------------------------------------------------------------------------
-# REST Framework
-# ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -121,9 +106,6 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.common.utils.custom_exception_handler",
 }
 
-# ---------------------------------------------------------------------------
-# DRF Spectacular (OpenAPI / Swagger)
-# ---------------------------------------------------------------------------
 SPECTACULAR_SETTINGS = {
     "TITLE": "P2P Process Mining Service API",
     "DESCRIPTION": (
@@ -136,9 +118,6 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -175,14 +154,8 @@ LOGGING = {
     },
 }
 
-# ---------------------------------------------------------------------------
-# FastAPI anomaly service integration
-# ---------------------------------------------------------------------------
 FASTAPI_ANOMALY_SERVICE_URL = config(
     "FASTAPI_ANOMALY_SERVICE_URL", default="http://localhost:8001"
 )
 
-# ---------------------------------------------------------------------------
-# SLA defaults
-# ---------------------------------------------------------------------------
 SLA_DEFAULT_DAYS = config("SLA_DEFAULT_DAYS", default=21, cast=int)

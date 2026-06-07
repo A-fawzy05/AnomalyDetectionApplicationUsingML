@@ -1,8 +1,4 @@
-/**
- * Integration tests for /api/org against the dev MongoDB:
- * create / join / my-orgs / delete, plus duplicate-name, wrong-password and
- * permission paths.
- */
+
 jest.mock('../../config/db.config', () => jest.fn());
 jest.mock('../../services/email.service', () => ({
   sendEmailVerificationOTP: jest.fn().mockResolvedValue({}),

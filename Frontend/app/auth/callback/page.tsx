@@ -20,10 +20,9 @@ export default function AuthCallback() {
       }
 
       try {
-        // Store the token
-        localStorage.setItem('token', token);
         
-        // Verify the token by fetching user profile
+        localStorage.setItem('token', token);
+
         const response = await fetch('http://localhost:3001/api/auth/profile', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -34,8 +33,7 @@ export default function AuthCallback() {
           const data = await response.json();
           setStatus('success');
           setMessage(`Welcome, ${data.data.fullName}! Redirecting to dashboard...`);
-          
-          // Redirect to dashboard after a short delay
+
           setTimeout(() => {
             router.push('/Home');
           }, 2000);

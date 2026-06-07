@@ -7,9 +7,7 @@ data:
   PORT: "3001"
   NODE_ENV: "production"
   JWT_EXPIRE: "7d"
-  # Browser origin allowed by CORS (frontend is out of scope for these manifests).
   FRONTEND_URL: "http://localhost:3000"
-  # Internal address other services use to reach the gateway.
   NODEJS_URL: "http://nodejs:3001"
   EMAIL_FROM: "noreply@p2p-insight.com"
   GOOGLE_REDIRECT_URI: "http://localhost:3001/auth/google/callback"

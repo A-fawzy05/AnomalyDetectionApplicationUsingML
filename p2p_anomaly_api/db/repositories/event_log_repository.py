@@ -1,6 +1,4 @@
-"""
-Repository for EventLog database operations.
-"""
+
 
 import numpy as np
 import pandas as pd
@@ -10,21 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.models.event_log import EventLog
 from core.config import settings
 
-
 async def bulk_insert_events(session: AsyncSession, run_id: UUID, df: pd.DataFrame) -> None:
-    """
-    Chunk inserts into batches of 1000 rows.
-    """
+
+       
     batch_size = settings.EVENT_LOG_BATCH_SIZE
-    
-    # Replace NaN with None so SQLAlchemy/asyncpg can handle them as NULL
+
     df_clean = df.where(pd.notnull(df), None)
     records = df_clean.to_dict(orient='records')
     
     for i in range(0, len(records), batch_size):
         batch = records[i:i + batch_size]
         for record in batch:
-            # Clean record to only include EventLog fields and handle types
+                                                                           
             cleaned_record = {
                 'run_id': run_id,
                 'case_id': str(record.get('case_id')),
@@ -39,7 +34,7 @@ async def bulk_insert_events(session: AsyncSession, run_id: UUID, df: pd.DataFra
                 'item_category': record.get('item_category'),
             }
             session.add(EventLog(**cleaned_record))
-        await session.flush() # Flush batch to DB
+        await session.flush()                    
     
     await session.commit()
 

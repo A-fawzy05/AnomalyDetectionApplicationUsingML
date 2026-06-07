@@ -100,7 +100,7 @@ const AlertNotificationBanner = ({
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex items-start gap-4 p-4">
-                {/* Icon */}
+                {}
                 <div className="flex-shrink-0 mt-0.5">
                   <Icon
                     name={styles.icon}
@@ -110,7 +110,7 @@ const AlertNotificationBanner = ({
                   />
                 </div>
 
-                {/* Content */}
+                {}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -135,7 +135,7 @@ const AlertNotificationBanner = ({
                       </div>
                     </div>
 
-                    {/* Dismiss Button */}
+                    {}
                     <button
                       onClick={() => handleDismiss(alert.id)}
                       className="flex-shrink-0 p-1 rounded-md hover:bg-black/10 transition-smooth"

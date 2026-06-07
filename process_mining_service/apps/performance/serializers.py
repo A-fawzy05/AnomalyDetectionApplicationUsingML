@@ -1,16 +1,14 @@
-"""Serializers for performance analysis API responses."""
+                                                         
 from rest_framework import serializers
 from .models import ActivityMetric, WeeklyMetric
 from apps.event_logs.models import P2PCase
 
-
 class KpiMetricSerializer(serializers.Serializer):
-    """Generic KPI metric with value, unit, trend."""
+                                                     
     value = serializers.FloatField()
     unit = serializers.CharField()
     change_pct = serializers.FloatField(allow_null=True)
     trend = serializers.CharField()
-
 
 class PerformanceSummarySerializer(serializers.Serializer):
     average_cycle_time = KpiMetricSerializer()
@@ -19,7 +17,6 @@ class PerformanceSummarySerializer(serializers.Serializer):
     sla_compliance_rate = KpiMetricSerializer()
     activity_duration_variance = KpiMetricSerializer()
     process_efficiency_score = KpiMetricSerializer()
-
 
 class WeeklyTrendItemSerializer(serializers.ModelSerializer):
     label = serializers.CharField(source="week_label")
@@ -38,11 +35,9 @@ class WeeklyTrendItemSerializer(serializers.ModelSerializer):
             "industry_benchmark_days",
         ]
 
-
 class WeeklyTrendsResponseSerializer(serializers.Serializer):
     weeks = WeeklyTrendItemSerializer(many=True)
     benchmark_enabled = serializers.BooleanField()
-
 
 class ActivityRankingItemSerializer(serializers.Serializer):
     rank = serializers.IntegerField()
@@ -55,10 +50,8 @@ class ActivityRankingItemSerializer(serializers.Serializer):
     bottleneck_severity = serializers.CharField(allow_null=True)
     recommendation = serializers.CharField(allow_null=True)
 
-
 class ActivityRankingResponseSerializer(serializers.Serializer):
     activities = ActivityRankingItemSerializer(many=True)
-
 
 class ProcessFlowStageSerializer(serializers.Serializer):
     step = serializers.IntegerField()
@@ -69,11 +62,9 @@ class ProcessFlowStageSerializer(serializers.Serializer):
     severity = serializers.CharField()
     color_code = serializers.CharField()
 
-
 class ProcessFlowResponseSerializer(serializers.Serializer):
     stages = ProcessFlowStageSerializer(many=True)
     severity_legend = serializers.DictField(child=serializers.CharField())
-
 
 class CaseDetailSerializer(serializers.ModelSerializer):
     case_id = serializers.CharField()
@@ -101,5 +92,5 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_bottleneck_count(self, obj: P2PCase) -> int:
-        """Count events whose duration qualifies as a bottleneck (avg > 10 days)."""
+                                                                                    
         return obj.events.filter(duration_days__gt=10).count()

@@ -1,13 +1,10 @@
-"""
-Repository for AnalysisRun database operations.
-"""
+
 
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models.analysis_run import AnalysisRun
-
 
 async def create_run(
     session: AsyncSession, 
@@ -26,7 +23,6 @@ async def create_run(
     await session.refresh(run)
     return run
 
-
 async def update_run_status(
     session: AsyncSession, 
     run_id: UUID, 
@@ -40,7 +36,6 @@ async def update_run_status(
     )
     await session.execute(stmt)
     await session.commit()
-
 
 async def update_run_results(
     session: AsyncSession, 
@@ -63,11 +58,9 @@ async def update_run_results(
     await session.execute(stmt)
     await session.commit()
 
-
 async def get_run(session: AsyncSession, run_id: UUID) -> Optional[AnalysisRun]:
     result = await session.execute(select(AnalysisRun).where(AnalysisRun.run_id == run_id))
     return result.scalar_one_or_none()
-
 
 async def list_runs(session: AsyncSession, page: int = 1, page_size: int = 10) -> List[AnalysisRun]:
     stmt = (
@@ -79,7 +72,6 @@ async def list_runs(session: AsyncSession, page: int = 1, page_size: int = 10) -
     result = await session.execute(stmt)
     return result.scalars().all()
 
-
 async def delete_run(session: AsyncSession, run_id: UUID) -> bool:
     run = await get_run(session, run_id)
     if not run:
@@ -88,9 +80,8 @@ async def delete_run(session: AsyncSession, run_id: UUID) -> bool:
     await session.commit()
     return True
 
-
 async def get_latest_completed_run(session: AsyncSession) -> Optional[AnalysisRun]:
-    """Get the most recent completed run for delta calculations."""
+                                                                   
     stmt = (
         select(AnalysisRun)
         .where(AnalysisRun.status == "completed")
@@ -99,7 +90,6 @@ async def get_latest_completed_run(session: AsyncSession) -> Optional[AnalysisRu
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
-
 
 async def delete_all_runs(session: AsyncSession) -> int:
     from sqlalchemy import delete

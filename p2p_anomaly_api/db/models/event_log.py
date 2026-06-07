@@ -1,12 +1,9 @@
-"""
-ORM model for event logs.
-"""
+
 
 import uuid
 from sqlalchemy import Column, String, Integer, Numeric, DateTime, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import UUID
 from db.models import Base
-
 
 class EventLog(Base):
     __tablename__ = "event_log"

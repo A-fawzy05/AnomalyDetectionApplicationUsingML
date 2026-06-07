@@ -135,7 +135,6 @@ class AuthService {
     return response.json();
   }
 
-  // Helper method to check if token is valid
   async validateToken(token: string): Promise<boolean> {
     try {
       await this.getProfile(token);

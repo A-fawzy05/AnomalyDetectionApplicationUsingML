@@ -1,9 +1,5 @@
-"""
-Views for event log management endpoints.
-POST /api/v1/event-logs/upload/
-GET  /api/v1/event-logs/
-GET  /api/v1/event-logs/{id}/status/
-"""
+
+   
 import logging
 
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -25,9 +21,7 @@ from .services import process_event_log, _detect_format
 
 logger = logging.getLogger(__name__)
 
-
 class EventLogUploadView(APIView):
-    """Upload and synchronously process an event log file."""
 
     parser_classes = [MultiPartParser, FormParser]
 
@@ -67,15 +61,12 @@ class EventLogUploadView(APIView):
             }
         )
 
-        # Synchronous processing
         event_log = process_event_log(str(event_log.id))
 
         out_serializer = EventLogSerializer(event_log)
         return Response(out_serializer.data, status=status.HTTP_200_OK)
 
-
 class EventLogListView(ListAPIView):
-    """List all uploaded event logs."""
 
     queryset = EventLog.objects.all()
     serializer_class = EventLogSerializer
@@ -88,9 +79,7 @@ class EventLogListView(ListAPIView):
     def get(self, request: Request, *args, **kwargs) -> Response:
         return super().get(request, *args, **kwargs)
 
-
 class EventLogStatusView(APIView):
-    """Poll the processing status of a specific event log."""
 
     @extend_schema(
         responses={200: EventLogStatusSerializer, 404: None},
@@ -110,9 +99,7 @@ class EventLogStatusView(APIView):
         serializer = EventLogStatusSerializer(event_log)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
 class ClearAllDataView(APIView):
-    """Delete all data from the database for testing purposes."""
 
     @extend_schema(
         responses={200: None},
@@ -132,7 +119,7 @@ class ClearAllDataView(APIView):
         logger.warning({"event": "clear_all_data_requested"})
 
         with transaction.atomic():
-            # Delete in order of dependencies
+                                             
             CaseAnomalySeverity.objects.all().delete()
             ActivityMetric.objects.all().delete()
             WeeklyMetric.objects.all().delete()

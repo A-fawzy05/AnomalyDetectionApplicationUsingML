@@ -24,10 +24,6 @@ const DJANGO  = 'http://localhost:8000/api/v1';
 const FASTAPI = 'http://localhost:8001/api/v1';
 const NODEJS  = 'http://localhost:3001/api/teams';
 
-// Coerce any API value (number | numeric-string | null | undefined) to a finite
-// number. Without this, a numeric field that arrives as a string would make the
-// `.toFixed()` calls below throw, which lands the whole fetch in the catch block
-// and silently strands the dashboard on the upload screen.
 function num(x: any): number {
   const n = typeof x === 'number' ? x : parseFloat(x);
   return Number.isFinite(n) ? n : 0;
@@ -134,7 +130,7 @@ const VariantAnalysisInteractive = () => {
   async function fetchData(c: SubteamContext) {
     setDataLoading(true);
     try {
-      // Optionally get anomaly_cases from FastAPI to enrich the aggregate call
+      
       let anomalyCases: any[] = [];
       if (c.fastApiRunId) {
         try {
@@ -143,15 +139,9 @@ const VariantAnalysisInteractive = () => {
             const faData = await faRes.json();
             anomalyCases = faData.anomaly_cases || [];
           }
-        } catch { /* proceed without anomaly enrichment */ }
+        } catch {  }
       }
 
-      // POST the aggregate request. `includeAnomaly` controls whether we send the
-      // optional FastAPI enrichment payload. Django processes that payload by
-      // looking up each P2PCase by case_id — which can 500 on the backend (e.g.
-      // duplicate case_ids across re-uploaded OCEL2 logs). The enrichment is
-      // optional, so on failure we retry WITHOUT it and still render the
-      // discovered variants rather than stranding the user on the upload screen.
       const postAggregate = (includeAnomaly: boolean) => {
         const body: any = { event_log_id: c.djangoEventLogId };
         if (includeAnomaly) {
@@ -167,7 +157,6 @@ const VariantAnalysisInteractive = () => {
 
       let res = await postAggregate(true);
 
-      // If the enriched call failed, retry once without the enrichment payload.
       if (!res.ok && anomalyCases.length) {
         const detail = await res.text().catch(() => '');
         console.warn(
@@ -185,8 +174,7 @@ const VariantAnalysisInteractive = () => {
       const json = await res.json();
       setDashData(mapAggToState(json));
     } catch (err) {
-      // Log the real error — previously this was only surfaced as a toast, which
-      // made a mapping/parse failure look identical to a network failure.
+
       console.error('Variant aggregate fetch/map failed:', err);
       showToast({ type: 'error', title: 'Failed to load data', message: err instanceof Error ? err.message : 'Unknown error' });
     } finally {
@@ -275,7 +263,6 @@ const VariantAnalysisInteractive = () => {
 
   const { metrics, chartData, variants, severityData } = dashData!;
 
-  // Apply client-side filters from VariantFilters panel
   const filteredVariants = variants.filter(v =>
     v.frequency >= freqMin &&
     v.frequency <= freqMax &&
@@ -319,7 +306,7 @@ const VariantAnalysisInteractive = () => {
               <div className="lg:col-span-2 space-y-6">
                 <VariantFrequencyChart data={filteredChartData} onVariantClick={setSelectedVariant} />
 
-                {/* Quick Insights — shown directly under the bubble chart */}
+                {}
                 <div className="bg-bg-secondary border border-border-primary rounded-xl p-5">
                   <h3 className="font-serif text-base font-semibold text-text-primary mb-3">Quick Insights</h3>
                   {!selectedVariant ? (

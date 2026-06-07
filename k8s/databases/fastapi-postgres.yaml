@@ -1,5 +1,3 @@
-# Postgres for the FastAPI anomaly service. StatefulSet + headless Service so
-# the pod has a stable network identity and a persistent volume.
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,7 +6,7 @@ metadata:
   labels:
     app: fastapi-postgres
 spec:
-  clusterIP: None        # headless — required by the StatefulSet
+  clusterIP: None
   selector:
     app: fastapi-postgres
   ports:

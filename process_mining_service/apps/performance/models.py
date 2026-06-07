@@ -1,13 +1,9 @@
-"""
-Performance analysis models.
-ActivityMetric and WeeklyMetric are precomputed at upload time and served on read.
-"""
+
+   
 from django.db import models
 from apps.event_logs.models import EventLog
 
-
 class ActivityMetric(models.Model):
-    """Precomputed per-activity performance stats across all cases in an event log."""
 
     class Severity(models.TextChoices):
         LOW = "low", "Low"
@@ -39,16 +35,14 @@ class ActivityMetric(models.Model):
     def __str__(self) -> str:
         return f"{self.activity_name} — {self.event_log_id}"
 
-
 class WeeklyMetric(models.Model):
-    """Weekly aggregated throughput and cycle time — used for the trend chart."""
 
     event_log = models.ForeignKey(
         EventLog,
         on_delete=models.CASCADE,
         related_name="weekly_metrics",
     )
-    week_label = models.CharField(max_length=20)  # e.g. "Week 1"
+    week_label = models.CharField(max_length=20)                 
     week_start = models.DateField()
     throughput_cases = models.IntegerField()
     avg_cycle_time_days = models.FloatField()

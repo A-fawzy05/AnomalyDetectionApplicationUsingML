@@ -38,7 +38,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
 
   if (!isAuthenticated) {
-    return null; // Will redirect in the useEffect
+    return null; 
   }
 
   if (user && requiredRole && !requiredRole.includes(user.role)) {

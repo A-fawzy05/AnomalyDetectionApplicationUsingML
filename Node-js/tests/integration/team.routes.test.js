@@ -1,10 +1,4 @@
-/**
- * Integration tests for /api/teams against the dev MongoDB:
- * create / join / subteams / admin-telegram / send-telegram-report.
- *
- * Also a regression test for the fixed bug: team membership must be recorded in
- * User.teams, NOT polluted into User.organizations.
- */
+
 jest.mock('../../config/db.config', () => jest.fn());
 jest.mock('../../services/email.service', () => ({
   sendEmailVerificationOTP: jest.fn().mockResolvedValue({}),
@@ -56,8 +50,8 @@ describe('/api/teams', () => {
     const inOrgs = (user.organizations || []).some(
       o => o.organizationId && o.organizationId.toString() === created.body.data.id.toString(),
     );
-    expect(inTeams).toBe(true);   // recorded in the right place
-    expect(inOrgs).toBe(false);   // and NOT leaking into organizations
+    expect(inTeams).toBe(true);   
+    expect(inOrgs).toBe(false);   
   });
 
   test('duplicate team name returns 409', async () => {
@@ -84,7 +78,6 @@ describe('/api/teams', () => {
     const teamId = created.body.data.id;
     teamIds.push(teamId);
 
-    // Second user joins.
     const { token: memberToken } = await auth('viewer');
     const joined = await request(app).post('/api/teams/join')
       .set('Authorization', `Bearer ${memberToken}`)
@@ -92,7 +85,6 @@ describe('/api/teams', () => {
     expect(joined.status).toBe(200);
     expect(joined.body.data.memberCount).toBe(2);
 
-    // Admin creates a subteam.
     const sub = await request(app).post(`/api/teams/${teamId}/subteams`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ name: 'Procurement' });
@@ -120,7 +112,7 @@ describe('/api/teams', () => {
 
   test('send-telegram-report posts to the n8n webhook (mocked fetch)', async () => {
     if (!dbOk) return;
-    // Admin with a linked Telegram chat id.
+    
     const { user, token } = await makeAuthUser('admin');
     userIds.push(user._id);
     user.telegramChatId = '123456789';

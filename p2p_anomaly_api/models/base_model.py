@@ -1,10 +1,7 @@
-"""
-Base class for ML models.
-"""
+
 
 from abc import ABC, abstractmethod
 from typing import Any
-
 
 class BaseModel(ABC):
     @abstractmethod

@@ -1,9 +1,5 @@
 version: "3.9"
 
-# All containers share p2p_net and resolve each other by service name.
-# Browser-facing ports are exposed to the host; inter-service traffic stays internal.
-# MongoDB is on Atlas (cloud) — no local MongoDB container needed.
-
 networks:
   p2p_net:
     driver: bridge
@@ -15,8 +11,6 @@ volumes:
   fastapi_artifacts:
 
 services:
-
-  # ── Infrastructure ─────────────────────────────────────────────────────────
 
   postgres_fastapi:
     image: postgres:16-alpine
@@ -88,14 +82,12 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     ports:
-      - "9093:9093"   # host-accessible for debugging; containers use kafka:9092
+      - "9093:9093"
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 15s
       timeout: 10s
       retries: 10
-
-  # ── Application services ───────────────────────────────────────────────────
 
   nodejs:
     build:
@@ -111,20 +103,16 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: ${NODE_ENV:-production}
-      # MongoDB Atlas connection string — set in .env
       MONGODB_URI: ${MONGODB_URI}
       JWT_SECRET: ${JWT_SECRET:-change-me}
       JWT_EXPIRE: ${JWT_EXPIRE:-7d}
-      # CORS origin — browser hits localhost:3000
       FRONTEND_URL: http://localhost:3000
-      # Internal hostname used by other services to call Node.js
       NODEJS_URL: http://nodejs:3001
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@p2p-insight.com}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: http://localhost:3001/auth/google/callback
-    # No depends_on — Atlas is external, no local container to wait for
 
   fastapi:
     build:
@@ -192,7 +180,6 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      # Baked in at build time — browser hits host-exposed ports on localhost
       NEXT_PUBLIC_NODEJS_URL: http://localhost:3001
       NEXT_PUBLIC_FASTAPI_URL: http://localhost:8001
       NEXT_PUBLIC_DJANGO_URL: http://localhost:8000

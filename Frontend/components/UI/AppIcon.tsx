@@ -8,7 +8,7 @@ import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 type IconVariant = 'outline' | 'solid';
 
 interface IconProps {
-    name: string; // Changed to string to accept dynamic values
+    name: string; 
     variant?: IconVariant;
     size?: number;
     className?: string;

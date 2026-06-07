@@ -1,15 +1,4 @@
-"""
-Real-time streaming endpoints: append new events to an existing analyzed run.
 
-POST /runs/{run_id}/append        — JSON body (StreamRequest), for Kafka consumers,
-                                    webhooks, and any service that can POST events.
-POST /runs/{run_id}/append/file   — multipart file upload (CSV / XES / OCEL2),
-                                    for batch real-time ingestion.
-
-Both endpoints run the full ML pipeline on the new batch, upsert results into
-the existing run, recompute the run-level summary from DB totals, and return
-an AppendResponse containing only the new anomalies + the updated summary.
-"""
 
 import logging
 import time
@@ -48,21 +37,14 @@ from scoring.merger import calibrate_thresholds, merge_scores
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-# ---------------------------------------------------------------------------
-# Shared pipeline helper
-# ---------------------------------------------------------------------------
-
 async def _run_pipeline_and_append(
     run_id: UUID,
     df: pd.DataFrame,
     db: AsyncSession,
     start_ts: float,
 ) -> AppendResponse:
-    """
-    Execute the full anomaly detection pipeline on `df`, upsert results into
-    `run_id`, recompute run-level summary from DB, and return AppendResponse.
-    """
+
+       
     n_cases = df["case_id"].nunique()
 
     if n_cases == 0:
@@ -73,25 +55,20 @@ async def _run_pipeline_and_append(
             f"Batch contains {n_cases} cases — exceeds the 10,000-case safety limit."
         )
 
-    # 1. Persist new raw events (appended to same run)
     await event_log_repository.bulk_insert_events(db, run_id, df)
 
-    # 2. Feature engineering
     X_case = build_case_features(df)
     df_events = sequence_features.prep_event_features(df)
     encoded = lstm_autoencoder.encode_events(df_events)
     X_seq, case_ids, lengths = lstm_autoencoder.build_sequences(df_events, encoded)
 
-    # 3. Scoring
     if_scores, _ = isolation_forest.predict_with_labels(X_case)
     lstm_scores = lstm_autoencoder.score_sequences(X_seq, lengths, case_ids)
     lstm_scores = lstm_autoencoder.assign_flags(lstm_scores)
 
-    # 4. Phase summary & score fusion
     phase_summary = build_phase_summary(df)
     merged = merge_scores(X_case, if_scores, lstm_scores, phase_summary)
 
-    # 5. Adaptive threshold calibration (same strategy as /analyze)
     adaptive_if_threshold, adaptive_lstm_threshold = calibrate_thresholds(
         if_scores=if_scores,
         lstm_scores=lstm_scores["lstm_case_score"].values,
@@ -100,7 +77,6 @@ async def _run_pipeline_and_append(
         target_anomaly_rate=0.05,
     )
 
-    # 6. Labeling
     labeled = apply_labels(
         merged, df,
         if_threshold=adaptive_if_threshold,
@@ -108,20 +84,16 @@ async def _run_pipeline_and_append(
     )
     labeled = labeled.where(pd.notnull(labeled), None)
 
-    # Restore vendor from ingested df (same fix as /analyze)
     if "vendor" in df.columns and "case_id" in labeled.columns:
         vendor_map = df.groupby("case_id")["vendor"].first()
         labeled["supplier"] = labeled["case_id"].map(vendor_map)
 
-    # 7. Process flow map (scoped to new batch)
     flow_map = build_process_flow_map(df, labeled)
 
-    # 8. Upsert cases — track new vs updated
     case_rows = _prepare_case_rows(labeled)
     new_count, updated_count = await case_repository.upsert_cases(db, run_id, case_rows)
     await phase_repository.bulk_insert_phases(db, run_id, flow_map)
 
-    # 9. Recompute run-level summary from DB totals (old + new)
     total_cases_db, anomalous_cases_db = await case_repository.get_total_counts(db, run_id)
     avg_proc = 0.0
     if "case_duration_hours" in labeled.columns:
@@ -138,11 +110,9 @@ async def _run_pipeline_and_append(
         "delta_avg_processing_time_pct": 0.0,
     }
 
-    # 10. Update run record with new totals
     duration_ms = int((time.time() - start_ts) * 1000)
     await run_repository.update_run_results(db, run_id, updated_summary, duration_ms)
 
-    # 11. Build response — new_anomalies = anomalies found in THIS batch only
     new_anomalies_df = labeled[labeled["anomaly_type"].notna()].sort_values(
         "severity_score", ascending=False
     ).head(50)
@@ -193,12 +163,9 @@ async def _run_pipeline_and_append(
         "real_time_feed": real_time_feed,
     }
 
-
 def _stream_events_to_df(request: StreamRequest) -> pd.DataFrame:
-    """
-    Convert a StreamRequest (list of StreamEvent) into the canonical 25-column
-    DataFrame that the ML pipeline expects — same schema as CSVIngester output.
-    """
+
+       
     rows = []
     for ev in request.events:
         rows.append({
@@ -209,7 +176,7 @@ def _stream_events_to_df(request: StreamRequest) -> pd.DataFrame:
             "amount": ev.amount,
             "quantity": ev.quantity,
             "vendor": ev.vendor or "",
-            # BPI-2019 / canonical attribute columns — fill defaults
+                                                                    
             "case:Document Type": ev.document_type or "",
             "case:Spend area text": ev.spend_area or "",
             "case:Sub spend area text": "",
@@ -229,11 +196,6 @@ def _stream_events_to_df(request: StreamRequest) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     df = df.sort_values(["case_id", "timestamp"]).reset_index(drop=True)
     return df
-
-
-# ---------------------------------------------------------------------------
-# Endpoint 1: JSON events (real-time streaming)
-# ---------------------------------------------------------------------------
 
 @router.post(
     "/runs/{run_id}/append",
@@ -257,7 +219,6 @@ async def append_events_json(
 ) -> AppendResponse:
     start_ts = time.time()
 
-    # Validate the run exists and is completed
     run = await run_repository.get_run(db, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
@@ -289,11 +250,6 @@ async def append_events_json(
         logger.error(f"Stream append failed for run {run_id}: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal error during stream append.")
 
-
-# ---------------------------------------------------------------------------
-# Endpoint 2: File upload (batch real-time append)
-# ---------------------------------------------------------------------------
-
 @router.post(
     "/runs/{run_id}/append/file",
     response_model=AppendResponse,
@@ -314,7 +270,6 @@ async def append_events_file(
 ) -> AppendResponse:
     start_ts = time.time()
 
-    # Validate run
     run = await run_repository.get_run(db, run_id)
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
@@ -325,7 +280,6 @@ async def append_events_file(
                    "Only completed runs can be appended to.",
         )
 
-    # Validate file size
     content = await file.read()
     if len(content) > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large.")

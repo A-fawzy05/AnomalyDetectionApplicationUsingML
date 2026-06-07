@@ -1,9 +1,4 @@
-"""
-Report endpoint: calls the n8n webhook synchronously, which runs DeepSeek and
-returns the AI-generated Markdown report. No Kafka involved.
 
-POST /runs/{run_id}/report
-"""
 
 import logging
 from uuid import UUID
@@ -21,32 +16,19 @@ from db.session import get_db
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-# ---------------------------------------------------------------------------
-# Request / Response schemas
-# ---------------------------------------------------------------------------
-
 class GenerateReportRequest(BaseModel):
     user_name: str
-    min_severity: str = "Low"   # Low | Medium | High | Critical
-
+    min_severity: str = "Low"                                   
 
 class GenerateReportResponse(BaseModel):
     run_id: UUID
     report_markdown: str
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 SEVERITY_ORDER = {"Low": 0, "Medium": 1, "High": 2, "Critical": 3}
-
 
 def _filter_by_severity(cases: list[dict], min_severity: str) -> list[dict]:
     min_rank = SEVERITY_ORDER.get(min_severity, 0)
     return [c for c in cases if SEVERITY_ORDER.get(c.get("severity_label", "Low"), 0) >= min_rank]
-
 
 def _build_payload(run, cases: list[dict], phases, request: GenerateReportRequest) -> dict:
     type_counts: dict[str, int] = {}
@@ -112,11 +94,6 @@ def _build_payload(run, cases: list[dict], phases, request: GenerateReportReques
             if c.get("anomaly_type")
         ],
     }
-
-
-# ---------------------------------------------------------------------------
-# Endpoint
-# ---------------------------------------------------------------------------
 
 @router.post(
     "/runs/{run_id}/report",

@@ -29,12 +29,10 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
 
   const { toasts, markAsRead, markAllAsRead, getUnreadCount } = useToast();
 
-  // Sync dark mode on mount
   useEffect(() => {
     setDarkMode(document.documentElement.classList.contains('dark'));
   }, []);
 
-  // Close all dropdowns on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (dateRef.current && !dateRef.current.contains(e.target as Node))
@@ -87,10 +85,10 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
     <header className="sticky top-0 z-40 bg-bg-secondary border-b border-border-primary shadow-sm transition-colors duration-300">
       <div className="flex items-center justify-between h-20 px-8">
 
-        {/* ── Left: date picker + live/status ── */}
+        {}
         <div className="flex items-center gap-4">
 
-          {/* Date range dropdown — ref-based, no backdrop overlay */}
+          {}
           <div className="relative" ref={dateRef}>
             <button
               onClick={() => setIsDateDropdownOpen(o => !o)}
@@ -127,17 +125,17 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
             )}
           </div>
 
-          {/* Live toggle (Anomaly dashboard) or static connection status */}
+          {}
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-primary/50 border border-border-primary">
             <div className={`w-2 h-2 rounded-full ${connectionColor} ${connectionStatus === 'connected' ? 'animate-pulse' : ''}`} />
             <span className="font-sans text-xs text-text-secondary">{connectionLabel}</span>
           </div>
         </div>
 
-        {/* ── Right: theme, refresh, notifications, user ── */}
+        {}
         <div className="flex items-center gap-3">
 
-          {/* Theme toggle */}
+          {}
           <button
             onClick={toggleDarkMode}
             className="p-2 rounded-lg hover:bg-bg-primary transition-colors text-text-primary"
@@ -146,7 +144,7 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          {/* Refresh */}
+          {}
           <button
             onClick={handleRefresh}
             disabled={isLoading}
@@ -160,7 +158,7 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
             <Icon name="ArrowPathIcon" size={20} className={isLoading ? 'animate-spin' : ''} />
           </button>
 
-          {/* Notifications — ref-based close */}
+          {}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => setIsNotificationDropdownOpen(o => !o)}
@@ -218,7 +216,7 @@ const GlobalHeader = ({ onRefresh, isLoading = false, dateRange: externalDateRan
             )}
           </div>
 
-          {/* User menu — ref-based close */}
+          {}
           <div className="relative ml-2" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen(o => !o)}

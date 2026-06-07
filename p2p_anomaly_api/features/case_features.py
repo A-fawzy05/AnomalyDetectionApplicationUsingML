@@ -1,8 +1,5 @@
-"""
-Case-level feature engineering for inference.
-Must produce exactly 2117 columns matching train_columns.pkl.
-Pipeline: raw events → aggregate → one-hot encode → reindex to train_columns.
-"""
+
+   
 import json
 import logging
 from pathlib import Path
@@ -47,7 +44,6 @@ DROP_COLS = [
     "category_mean_unit_price_case",
 ]
 
-
 def _load_artifacts():
     p = Path(settings.MODEL_DIR)
     train_columns   = joblib.load(p / "train_columns.pkl")
@@ -60,13 +56,9 @@ def _load_artifacts():
     return (train_columns, category_means, vendor_freq,
             user_freq, user_entropy, user_vendor_map, group_workload)
 
-
 def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build the 2117-column case feature matrix from a flat events DataFrame.
-    df must have canonical column names (case_id, activity, timestamp,
-    resource, amount, quantity, vendor, plus all case:* columns).
-    """
+
+       
     (train_columns, category_means, vendor_freq,
      user_freq, user_entropy, user_vendor_map, group_workload) = _load_artifacts()
 
@@ -92,7 +84,6 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
           .diff().dt.total_seconds().div(3600).fillna(0)
     )
 
-    # ── Step 1: Aggregate to case level ──────────────────────────────────────
     grp = df.groupby("case_id")
 
     case_agg = grp.agg(
@@ -106,9 +97,9 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         off_hours_count                 =("is_off_hours_flag", "sum"),
         avg_unit_price                  =("unit_price", "mean"),
         max_unit_price                  =("unit_price", "max"),
-        avg_price_deviation             =("unit_price", "mean"),  # placeholder
-        max_abs_price_deviation         =("unit_price", "max"),   # placeholder
-    ) # Removed .reset_index() to keep case_id as index
+        avg_price_deviation             =("unit_price", "mean"),               
+        max_abs_price_deviation         =("unit_price", "max"),                
+    )                                                  
 
     case_agg["case_duration_hours"] = (
         case_agg["case_end_time"] - case_agg["case_start_time"]
@@ -123,7 +114,6 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         case_agg["case_start_time"].dt.floor("h")
     )
 
-    # Static columns (first value per case)
     static_cols = [c for c in [
         "vendor", "resource",
         "case:Document Type", "case:Spend area text",
@@ -151,7 +141,6 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     case_agg["is_over_threshold"] = (case_agg["case_amount"] > 500).astype("int8")
 
-    # ── Step 2: Apply train-only lookup maps ──────────────────────────────────
     item_cat_col = "case:Item Category"
     if item_cat_col in case_agg.columns:
         case_agg["category_mean_unit_price_case"] = (
@@ -172,9 +161,7 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         case_agg["vendor_case_frequency"] = (
             case_agg["vendor"].astype(str).map(vendor_freq).fillna(0)
         )
-        # vendor_batch_frequency: how many cases share the same vendor in THIS batch.
-        # Must use .map() — groupby().size() returns a vendor-indexed Series which
-        # mis-aligns against the case_id index and produces all-NaN.
+
         vendor_batch_count = case_agg["vendor"].astype(str).map(
             case_agg["vendor"].astype(str).value_counts()
         )
@@ -208,21 +195,16 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     else:
         case_agg["group_workload"] = 0
 
-    # ── Step 3: Drop metadata columns ────────────────────────────────────────
     case_agg = case_agg.drop(
         columns=[c for c in DROP_COLS if c in case_agg.columns],
         errors="ignore"
     )
 
-    # ── Step 4: One-hot encode categoricals ───────────────────────────────────
-    # CRITICAL: cast to str first — prevents bool/float columns being
-    # silently skipped by get_dummies
     existing_cats = [c for c in CATEGORICAL_COLS if c in case_agg.columns]
     case_agg[existing_cats] = case_agg[existing_cats].astype(str)
     case_agg = pd.get_dummies(case_agg, columns=existing_cats, dummy_na=True)
     case_agg = case_agg.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # ── Step 5: Preserve vendor/amount/flag data before reindex ─────────────────
     vendor_data             = None
     amount_data             = None
     vendor_case_freq_data   = None
@@ -238,31 +220,20 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
     elif "case:Amount" in case_agg.columns:
         amount_data = case_agg["case:Amount"].copy()
 
-    # Save vendor frequency columns — they are NOT in train_columns so reindex
-    # would drop them; we re-inject them after reindex via DF attributes.
     if "vendor_case_frequency" in case_agg.columns:
         vendor_case_freq_data = case_agg["vendor_case_frequency"].copy()
     if "vendor_batch_frequency" in case_agg.columns:
         vendor_batch_freq_data = case_agg["vendor_batch_frequency"].copy()
 
-    # Remove non-numeric/non-training columns before reindex
     columns_to_drop = [c for c in ("vendor", "amount") if c in case_agg.columns]
     if columns_to_drop:
         case_agg = case_agg.drop(columns=columns_to_drop)
-    
-    # Reindex to match training columns exactly ───────────────────────────────
-    # This is line that fixes the 13 vs 2117 mismatch at inference time.
-    # Missing columns (unseen categories) are filled with 0.
-    # Extra columns (not in training) are dropped.
+
     before = case_agg.shape[1]
-    
-    # Only add vendor_batch_frequency if it was in original train_columns
-    # Otherwise keep original count to avoid mismatch
+
     case_agg = case_agg.reindex(columns=train_columns, fill_value=0.0)
     after = case_agg.shape[1]
-    
-    # Store side-channel data as DF attributes so merger/labeler can access them.
-    # (reindex drops any extra columns, so we must use attributes)
+
     if vendor_data is not None:
         case_agg._vendor_data = vendor_data
     if amount_data is not None:
@@ -280,8 +251,6 @@ def build_case_features(df: pd.DataFrame) -> pd.DataFrame:
         f"Feature count mismatch: got {after}, expected {len(train_columns)}"
     )
 
-    # Cast all float64 columns to float32 — halves memory usage
-    # IsolationForest and StandardScaler both accept float32
     float_cols = case_agg.select_dtypes(include='float64').columns
     case_agg[float_cols] = case_agg[float_cols].astype(np.float32)
 

@@ -1,9 +1,5 @@
-"""
-Business logic for event log ingestion.
-Parses XES, CSV, and OCEL JSON files using pm4py,
-then persists cases and events to PostgreSQL.
-All metric precomputation is triggered synchronously here.
-"""
+
+   
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -18,7 +14,6 @@ from .models import EventLog, P2PCase, P2PEvent
 
 logger = logging.getLogger(__name__)
 
-# Standard P2P activity sequence for ordering / reference model
 P2P_ACTIVITY_ORDER = [
     "Purchase Requisition Creation",
     "Budget Approval",
@@ -30,9 +25,8 @@ P2P_ACTIVITY_ORDER = [
     "Payment Authorization",
 ]
 
-
 def _detect_format(filename: str) -> str:
-    """Infer the event log format from file extension."""
+                                                         
     lower = filename.lower()
     if lower.endswith(".xes"):
         return EventLog.Format.XES
@@ -40,11 +34,10 @@ def _detect_format(filename: str) -> str:
         return EventLog.Format.OCEL
     return EventLog.Format.CSV
 
-
 def _parse_xes(file_path: str) -> pd.DataFrame:
-    """Parse an XES file into a flat DataFrame with columns: case_id, activity, timestamp, resource."""
+                                                                                                       
     try:
-        import pm4py  # noqa: PLC0415
+        import pm4py                 
         log = pm4py.read_xes(file_path)
         df = pm4py.convert_to_dataframe(log)
         df = df.rename(
@@ -62,11 +55,10 @@ def _parse_xes(file_path: str) -> pd.DataFrame:
         logger.error({"event": "xes_parse_failed", "error": str(exc)})
         raise
 
-
 def _parse_csv(file_path: str) -> pd.DataFrame:
-    """Parse a flat CSV event log. Expects columns: case_id / Case ID, activity / Activity, timestamp / Timestamp."""
+                                                                                                                     
     df = pd.read_csv(file_path)
-    # Normalise column names
+                            
     col_map = {}
     for col in df.columns:
         lower = col.lower().replace(" ", "_")
@@ -84,9 +76,8 @@ def _parse_csv(file_path: str) -> pd.DataFrame:
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
     return df
 
-
 def _parse_ocel(file_path: str) -> pd.DataFrame:
-    """Parse an OCEL 2.0 JSON file into a flat P2P event DataFrame."""
+                                                                      
     import json
 
     with open(file_path, "r", encoding="utf-8") as f:
@@ -97,7 +88,6 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
     events = ocel_data.get("events", {})
     objects = ocel_data.get("objects", {})
 
-    # Build object attributes + type lookup
     obj_attrs: dict = {}
     obj_types: dict = {}
     if isinstance(objects, dict):
@@ -124,7 +114,7 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     for evt_id, evt in event_iter:
-        # OCEL2.0 uses "type" for activity and "time" for timestamp
+                                                                   
         activity = (
             evt.get("type")
             or evt.get("activity")
@@ -136,7 +126,6 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
             or evt.get("ocel:timestamp", "")
         )
 
-        # Resource: top-level or inside attributes list
         resource = evt.get("resource", "")
         if not resource:
             for attr in evt.get("attributes", []):
@@ -154,7 +143,6 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
                 obj_id_str = str(obj_id)
                 obj_type_str = str(obj_types.get(obj_id_str, "")).lower()
 
-                # Detect purchase order case-insensitively via ID or type
                 if (
                     "purchase_order" in obj_id_str.lower()
                     or obj_type_str == "purchase_order"
@@ -164,7 +152,6 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
                 ):
                     case_id = obj_id_str
 
-                # Extract supplier from object attributes
                 attrs = obj_attrs.get(obj_id_str, {})
                 if isinstance(attrs, dict):
                     for k, v in attrs.items():
@@ -186,12 +173,9 @@ def _parse_ocel(file_path: str) -> pd.DataFrame:
         df = df.dropna(subset=["timestamp"])
     return df
 
-
 def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
-    """
-    Persist parsed event log DataFrame to P2PCase and P2PEvent rows.
-    Returns (case_count, event_count).
-    """
+
+       
     sla_threshold = event_log.sla_threshold_days or getattr(
         settings, "SLA_DEFAULT_DAYS", 21
     )
@@ -199,7 +183,6 @@ def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
     cases_created = 0
     events_created = 0
 
-    # Group by case_id
     if "case_id" not in df.columns:
         raise ValueError("DataFrame must have a 'case_id' column")
 
@@ -208,18 +191,15 @@ def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
         start_ts = group["timestamp"].min()
         end_ts = group["timestamp"].max()
 
-        # Cycle time in days
         if pd.notna(start_ts) and pd.notna(end_ts):
             cycle_time_days = (end_ts - start_ts).total_seconds() / 86400.0
         else:
             cycle_time_days = None
 
-        # Determine SLA breach
         sla_breached = (
             cycle_time_days is not None and cycle_time_days > sla_threshold
         )
 
-        # Determine case status
         if pd.isna(end_ts) or end_ts == start_ts:
             case_status = P2PCase.CaseStatus.IN_PROGRESS
         elif sla_breached:
@@ -227,7 +207,6 @@ def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
         else:
             case_status = P2PCase.CaseStatus.COMPLETED
 
-        # Supplier: try to grab from DataFrame column; fall back to empty string
         supplier = ""
         if "supplier" in group.columns:
             supplier_vals = group["supplier"].dropna()
@@ -257,7 +236,6 @@ def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
                 duration = (ts - prev_ts).total_seconds() / 86400.0
             prev_ts = ts if pd.notna(ts) else prev_ts
 
-            # Collect extra attributes from remaining columns
             skip_cols = {"case_id", "activity", "timestamp", "resource", "supplier"}
             extra_attrs = {
                 k: v
@@ -277,12 +255,9 @@ def _dataframe_to_db(df: pd.DataFrame, event_log: EventLog) -> tuple[int, int]:
 
     return cases_created, events_created
 
-
 def process_event_log(event_log_id: str) -> EventLog:
-    """
-    Main ingestion entry point called synchronously at upload time.
-    Parses the uploaded file, persists cases/events, then triggers precomputation.
-    """
+
+       
     from apps.performance.services.cycle_time import compute_cycle_time_metrics
     from apps.performance.services.bottleneck import compute_bottleneck_metrics
     from apps.performance.services.sla import compute_sla_metrics
@@ -302,7 +277,6 @@ def process_event_log(event_log_id: str) -> EventLog:
     try:
         file_path = event_log.file.path
 
-        # Parse
         if event_log.format == EventLog.Format.XES:
             df = _parse_xes(file_path)
         elif event_log.format == EventLog.Format.OCEL:
@@ -314,7 +288,6 @@ def process_event_log(event_log_id: str) -> EventLog:
             {"event": "parse_complete", "event_log_id": str(event_log_id), "rows": len(df)}
         )
 
-        # Persist cases + events in a single transaction
         with transaction.atomic():
             case_count, event_count = _dataframe_to_db(df, event_log)
 
@@ -331,7 +304,6 @@ def process_event_log(event_log_id: str) -> EventLog:
             }
         )
 
-        # Precompute all metrics synchronously
         with transaction.atomic():
             compute_cycle_time_metrics(event_log)
             compute_bottleneck_metrics(event_log)
@@ -346,7 +318,7 @@ def process_event_log(event_log_id: str) -> EventLog:
 
         logger.info({"event": "ingestion_complete", "event_log_id": str(event_log_id)})
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:                                
         logger.exception(
             {"event": "ingestion_failed", "event_log_id": str(event_log_id), "error": str(exc)}
         )

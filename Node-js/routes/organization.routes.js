@@ -4,7 +4,6 @@ const { authenticate } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(authenticate);
 
 router.post('/create', OrganizationController.create);

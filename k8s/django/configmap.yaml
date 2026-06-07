@@ -6,8 +6,6 @@ metadata:
 data:
   DJANGO_SETTINGS_MODULE: "config.settings.production"
   DEBUG: "False"
-  # Must include the probe Host header value (localhost), the in-cluster service
-  # name, and its FQDN so inter-service calls and kubelet probes both pass.
   ALLOWED_HOSTS: "localhost,127.0.0.1,django,django.p2p.svc.cluster.local"
   DB_NAME: "process_mining_db"
   DB_USER: "postgres"

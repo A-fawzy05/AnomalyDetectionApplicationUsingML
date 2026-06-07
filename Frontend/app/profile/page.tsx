@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-bg-primary' : 'bg-gray-50'}`}>
-      {/* Header */}
+      {}
       <header className={`sticky top-0 z-30 border-b transition-colors duration-200 ${isDark ? 'bg-bg-primary border-border-primary' : 'bg-white border-gray-200'}`}>
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => router.push('/Home')}>
@@ -150,13 +150,13 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      {/* Main */}
+      {}
       <main className="max-w-[1200px] mx-auto px-6 py-10">
         <h2 className={`text-2xl font-semibold mb-8 ${isDark ? 'text-text-primary' : 'text-gray-900'}`}>
           Welcome back, {user?.fullName || 'User'}
         </h2>
 
-        {/* Action Cards */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10">
           <button onClick={() => setActiveModal('create')} className={`group text-left p-6 rounded-lg border transition-colors ${isDark ? 'bg-bg-secondary border-border-primary hover:border-nobel-gold/60' : 'bg-white border-gray-200 hover:border-gray-400'}`}>
             <div className={`mb-4 transition-colors ${isDark ? 'text-text-secondary group-hover:text-nobel-gold' : 'text-gray-400 group-hover:text-gray-700'}`}><Plus size={20} strokeWidth={1.5} /></div>
@@ -170,7 +170,7 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Teams List */}
+        {}
         {teamsLoading ? (
           <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 size={16} className="animate-spin" /> Loading teams…</div>
         ) : teams.length === 0 ? (
@@ -186,7 +186,7 @@ export default function ProfilePage() {
                 const isAdmin = team.role === 'admin';
                 return (
                   <div key={team.id} className={idx > 0 ? (isDark ? 'border-t border-border-primary' : 'border-t border-gray-100') : ''}>
-                    {/* Team row */}
+                    {}
                     <div className={`flex items-center justify-between px-4 py-3 ${isDark ? 'bg-bg-secondary' : 'bg-white'}`}>
                       <button className="flex items-center gap-3 flex-1 text-left" onClick={() => toggleTeamExpand(team.id)}>
                         <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-semibold ${isDark ? 'bg-surface-elevated text-text-primary' : 'bg-gray-100 text-gray-700'}`}>
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Subteams panel */}
+                    {}
                     {isExpanded && (
                       <div className={`px-4 pb-3 ${isDark ? 'bg-bg-primary/40' : 'bg-gray-50'}`}>
                         {team.subteams.length === 0 && !isAdmin && (
@@ -242,7 +242,7 @@ export default function ProfilePage() {
                           </div>
                         ))}
 
-                        {/* Create subteam — admin only */}
+                        {}
                         {isAdmin && (
                           <div className="mt-2 flex items-center gap-2">
                             <input
@@ -275,7 +275,7 @@ export default function ProfilePage() {
         )}
       </main>
 
-      {/* Modals */}
+      {}
       {activeModal === 'create' && (
         <CreateTeamModal isDark={isDark} onClose={() => setActiveModal(null)} onSuccess={() => { setActiveModal(null); fetchTeams(); }} />
       )}
@@ -289,7 +289,6 @@ export default function ProfilePage() {
   );
 }
 
-// ─── Create Team Modal ────────────────────────────────────────────────────────
 function CreateTeamModal({ isDark, onClose, onSuccess }: { isDark: boolean; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
@@ -340,7 +339,6 @@ function CreateTeamModal({ isDark, onClose, onSuccess }: { isDark: boolean; onCl
   );
 }
 
-// ─── Join Team Modal ───────────────────────────────────────────────────────────
 function JoinTeamModal({ isDark, onClose, onSuccess }: { isDark: boolean; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
@@ -382,7 +380,6 @@ function JoinTeamModal({ isDark, onClose, onSuccess }: { isDark: boolean; onClos
   );
 }
 
-// ─── Telegram Modal ───────────────────────────────────────────────────────────
 function TelegramModal({ isDark, token, onClose }: { isDark: boolean; token: string | null; onClose: () => void }) {
   const [phone, setPhone] = useState('');
   const [chatId, setChatId] = useState('');
@@ -442,7 +439,6 @@ function TelegramModal({ isDark, token, onClose }: { isDark: boolean; token: str
   );
 }
 
-// ─── Shared UI helpers ────────────────────────────────────────────────────────
 function ModalShell({ isDark, onClose, title, children }: { isDark: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>

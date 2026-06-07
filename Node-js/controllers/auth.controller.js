@@ -6,7 +6,7 @@ const Joi = require('joi');
 const bcrypt = require('bcryptjs');
 
 class AuthController {
-  // Validation schemas
+  
   static signupSchema = Joi.object({
     fullName: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
@@ -28,7 +28,6 @@ class AuthController {
     email: Joi.string().email().required()
   });
 
-  // Signup with email verification
   static async signup(req, res) {
     try {
       const { error } = AuthController.signupSchema.validate(req.body);
@@ -41,10 +40,8 @@ class AuthController {
 
       const { fullName, email, password } = req.body;
 
-      // Hash password before creating user
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Check if user already exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
@@ -53,26 +50,21 @@ class AuthController {
         });
       }
 
-      // Create new user with hashed password
       const user = new User({
         fullName,
         email,
         password: hashedPassword
       });
 
-      // Generate OTP before save
       const otp = user.generateEmailOTP();
-      
-      // Save user with OTP in one operation
+
       await user.save();
 
-      // Try to send email, but don't fail if email doesn't work
       try {
         await emailService.sendEmailVerificationOTP(email, otp, fullName);
       } catch (emailError) {
         console.error('Email service error:', emailError);
-        // User is created, just log the email error
-        // Don't delete the user, just continue
+
       }
 
       res.status(201).json({
@@ -93,7 +85,6 @@ class AuthController {
     }
   }
 
-  // Login with email and password
   static async login(req, res) {
     try {
       const { error } = AuthController.loginSchema.validate(req.body);
@@ -106,7 +97,6 @@ class AuthController {
 
       const { email, password } = req.body;
 
-      // Find user with password
       const user = await User.findOne({ email }).select('+password +emailVerificationOTP +emailVerificationExpires');
       if (!user) {
         return res.status(401).json({
@@ -115,7 +105,6 @@ class AuthController {
         });
       }
 
-      // Check password
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
         return res.status(401).json({
@@ -124,11 +113,9 @@ class AuthController {
         });
       }
 
-      // Update last login
       user.lastLogin = new Date();
       await user.save();
 
-      // Generate JWT token
       const token = jwtService.generateToken(user._id, user.email, user.role);
 
       res.json({
@@ -155,7 +142,6 @@ class AuthController {
     }
   }
 
-  // Verify email with OTP
   static async verifyEmail(req, res) {
     try {
       const { error } = AuthController.verifyOTPSchema.validate(req.body);
@@ -168,7 +154,6 @@ class AuthController {
 
       const { email, otp } = req.body;
 
-      // Find user with OTP fields
       const user = await User.findOne({ 
         email,
         emailVerificationOTP: otp,
@@ -182,11 +167,9 @@ class AuthController {
         });
       }
 
-      // Clear OTP and mark email as verified
       user.clearEmailOTP();
       await user.save();
 
-      // Generate JWT token
       const token = jwtService.generateToken(user._id, user.email, user.role);
 
       res.json({
@@ -213,7 +196,6 @@ class AuthController {
     }
   }
 
-  // Resend OTP
   static async resendOTP(req, res) {
     try {
       const { error } = AuthController.resendOTPSchema.validate(req.body);
@@ -226,7 +208,6 @@ class AuthController {
 
       const { email } = req.body;
 
-      // Find user
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(404).json({
@@ -242,11 +223,9 @@ class AuthController {
         });
       }
 
-      // Generate new OTP
       const otp = user.generateEmailOTP();
       await user.save();
 
-      // Send email
       await emailService.sendEmailVerificationOTP(email, otp, user.fullName);
 
       res.json({
@@ -262,7 +241,6 @@ class AuthController {
     }
   }
 
-  // Google OAuth login
   static async googleAuth(req, res) {
     try {
       const { code } = req.query;
@@ -274,7 +252,6 @@ class AuthController {
         });
       }
 
-      // Get Google user info
       const googleUser = await googleService.getGoogleUser(code);
 
       if (!googleUser.verifiedEmail) {
@@ -284,7 +261,6 @@ class AuthController {
         });
       }
 
-      // Find or create user
       let user = await User.findOne({ 
         $or: [
           { email: googleUser.email },
@@ -293,17 +269,17 @@ class AuthController {
       });
 
       if (!user) {
-        // Create new user from Google data
+        
         user = new User({
           fullName: googleUser.name,
           email: googleUser.email,
           googleId: googleUser.id,
           isEmailVerified: true,
           profilePicture: googleUser.picture,
-          role: 'viewer' // Default role for Google users
+          role: 'viewer' 
         });
       } else {
-        // Update existing user
+        
         user.googleId = googleUser.id;
         user.isEmailVerified = true;
         if (googleUser.picture && !user.profilePicture) {
@@ -314,10 +290,8 @@ class AuthController {
       user.lastLogin = new Date();
       await user.save();
 
-      // Generate JWT token
       const token = jwtService.generateToken(user._id, user.email, user.role);
 
-      // Redirect to frontend with token
       const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${token}`;
       res.redirect(redirectUrl);
     } catch (error) {
@@ -329,7 +303,6 @@ class AuthController {
     }
   }
 
-  // Get Google auth URL
   static async getGoogleAuthUrl(req, res) {
     try {
       const authUrl = googleService.getAuthUrl();
@@ -346,7 +319,6 @@ class AuthController {
     }
   }
 
-  // Get current user profile
   static async getProfile(req, res) {
     try {
       const user = await User.findById(req.user.userId);
@@ -374,7 +346,6 @@ class AuthController {
     }
   }
 
-  // Save / update telegram phone number and chat ID
   static async updateTelegramPhone(req, res) {
     try {
       const { telegramPhone, telegramChatId } = req.body;
@@ -412,6 +383,5 @@ class AuthController {
   }
 
 }
-
 
 module.exports = AuthController;

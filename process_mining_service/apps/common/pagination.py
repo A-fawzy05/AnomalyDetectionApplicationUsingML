@@ -1,13 +1,9 @@
-"""Shared pagination classes used across all list endpoints."""
+                                                               
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
-
 class StandardPagePagination(PageNumberPagination):
-    """
-    Page-number pagination with configurable page size.
-    Adds ``count``, ``next``, ``previous``, and ``results`` to response.
-    """
+
 
     page_size = 20
     page_size_query_param = "page_size"

@@ -27,8 +27,6 @@ spec:
         - name: process-mining
           image: p2p-process-mining:latest
           imagePullPolicy: IfNotPresent
-          # Override the image's dev-server CMD with a production gunicorn server.
-          # Migrations are handled separately by migrate-job.yaml (not here).
           command: ["gunicorn"]
           args:
             - "--bind"
@@ -53,9 +51,6 @@ spec:
             limits:
               cpu: "1"
               memory: 1Gi
-          # --- Self-healing probes ---
-          # The Host header MUST be an entry in ALLOWED_HOSTS or Django returns
-          # 400 (DisallowedHost) to the kubelet and the probe fails.
           startupProbe:
             httpGet:
               path: /health/

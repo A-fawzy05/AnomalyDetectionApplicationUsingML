@@ -1,8 +1,5 @@
-"""
-Performance Analysis API Views.
-All business logic is delegated to service modules.
-Views are thin: validate params → call service → serialize → return.
-"""
+
+   
 import logging
 
 from django.db.models import Avg, Count, Q
@@ -32,7 +29,6 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-# Standard P2P activity sequence for process flow ordering
 P2P_ACTIVITY_ORDER = [
     "Purchase Requisition Creation",
     "Budget Approval",
@@ -46,16 +42,13 @@ P2P_ACTIVITY_ORDER = [
 
 SEVERITY_COLOR_MAP = {"low": "green", "medium": "orange", "high": "red"}
 
-
 def _get_event_log(event_log_id: str) -> EventLog | None:
     try:
         return EventLog.objects.get(pk=event_log_id)
     except EventLog.DoesNotExist:
         return None
 
-
 class PerformanceSummaryView(APIView):
-    """GET /api/v1/performance/summary/"""
 
     @extend_schema(
         parameters=[
@@ -85,28 +78,22 @@ class PerformanceSummaryView(APIView):
 
         logger.info({"event": "performance_summary_request", "event_log_id": event_log_id})
 
-        # ---- Cycle time ----
         avg_ct = get_average_cycle_time(event_log) or 0.0
 
-        # ---- Throughput ----
         total_cases = event_log.cases.count()
 
-        # ---- Bottlenecks ----
         bottleneck_count = ActivityMetric.objects.filter(
             event_log=event_log, is_bottleneck=True
         ).count()
 
-        # ---- SLA ----
         sla_rate = get_sla_compliance_rate(event_log)
 
-        # ---- Variance: mean of all activity variance_pcts ----
         metrics = ActivityMetric.objects.filter(event_log=event_log)
         if metrics.exists():
             avg_variance = sum(m.variance_pct for m in metrics) / metrics.count()
         else:
             avg_variance = 0.0
 
-        # ---- Efficiency score ----
         efficiency = compute_process_efficiency_score(event_log)
 
         data = {
@@ -149,9 +136,7 @@ class PerformanceSummaryView(APIView):
         }
         return Response(data, status=status.HTTP_200_OK)
 
-
 class WeeklyTrendsView(APIView):
-    """GET /api/v1/performance/weekly-trends/"""
 
     @extend_schema(
         parameters=[
@@ -187,7 +172,6 @@ class WeeklyTrendsView(APIView):
 
         weekly_qs = WeeklyMetric.objects.filter(event_log=event_log).order_by("week_start")
 
-        # Limit to most-recent n_weeks
         total = weekly_qs.count()
         if total > n_weeks:
             weekly_qs = weekly_qs[total - n_weeks:]
@@ -208,9 +192,7 @@ class WeeklyTrendsView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class ActivityRankingView(APIView):
-    """GET /api/v1/performance/activity-ranking/"""
 
     @extend_schema(
         parameters=[
@@ -263,9 +245,7 @@ class ActivityRankingView(APIView):
 
         return Response({"activities": activities}, status=status.HTTP_200_OK)
 
-
 class ProcessFlowView(APIView):
-    """GET /api/v1/performance/process-flow/"""
 
     @extend_schema(
         parameters=[
@@ -289,7 +269,6 @@ class ProcessFlowView(APIView):
                 status.HTTP_404_NOT_FOUND,
             )
 
-        # Count cases per activity
         from apps.event_logs.models import P2PEvent
         from django.db.models import Count as DjCount
         activity_case_counts = dict(
@@ -327,9 +306,7 @@ class ProcessFlowView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class PerformanceCasesView(APIView):
-    """GET /api/v1/performance/cases/ — paginated case table with filtering & sorting."""
 
     @extend_schema(
         parameters=[
@@ -364,7 +341,6 @@ class PerformanceCasesView(APIView):
 
         qs = P2PCase.objects.filter(event_log=event_log).prefetch_related("events")
 
-        # Filtering
         case_status = request.query_params.get("status")
         if case_status:
             qs = qs.filter(status=case_status)
@@ -373,7 +349,6 @@ class PerformanceCasesView(APIView):
         if search:
             qs = qs.filter(Q(case_id__icontains=search) | Q(supplier__icontains=search))
 
-        # Sorting
         sort_by = request.query_params.get("sort_by", "cycle_time")
         order = request.query_params.get("order", "desc")
         sort_map = {
@@ -386,15 +361,12 @@ class PerformanceCasesView(APIView):
         else:
             qs = qs.order_by(f"-{sort_field}")
 
-        # Pagination
         paginator = StandardPagePagination()
         page = paginator.paginate_queryset(qs, request)
         serializer = CaseDetailSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-
 class PerformanceAnalysisAggregatedView(APIView):
-    """GET /api/v1/performance/aggregate/ — All performance analysis in one endpoint."""
 
     @extend_schema(
         parameters=[
@@ -426,7 +398,6 @@ class PerformanceAnalysisAggregatedView(APIView):
 
         logger.info({"event": "performance_aggregate_request", "event_log_id": event_log_id})
 
-        # ---- Performance Summary ----
         avg_ct = get_average_cycle_time(event_log) or 0.0
         total_cases = event_log.cases.count()
         bottleneck_count = ActivityMetric.objects.filter(
@@ -437,7 +408,6 @@ class PerformanceAnalysisAggregatedView(APIView):
         avg_variance = sum(m.variance_pct for m in metrics) / metrics.count() if metrics.exists() else 0.0
         efficiency = compute_process_efficiency_score(event_log)
 
-        # ---- Weekly Trends ----
         try:
             n_weeks = int(request.query_params.get("weeks", 7))
         except ValueError:
@@ -459,7 +429,6 @@ class PerformanceAnalysisAggregatedView(APIView):
                 "industry_benchmark_days": w.industry_benchmark_days if include_benchmark else None,
             })
 
-        # ---- Activity Ranking ----
         try:
             activity_limit = int(request.query_params.get("activity_limit", 10))
         except ValueError:
@@ -483,7 +452,6 @@ class PerformanceAnalysisAggregatedView(APIView):
                 "recommendation": m.recommendation,
             })
 
-        # ---- Process Flow ----
         from django.db.models import Count as DjCount
         activity_case_counts = dict(
             P2PEvent.objects.filter(case__event_log=event_log)
@@ -510,7 +478,6 @@ class PerformanceAnalysisAggregatedView(APIView):
                 "color_code": SEVERITY_COLOR_MAP.get(severity, "green"),
             })
 
-        # ---- Cases (first page only for aggregated view) ----
         try:
             case_page = int(request.query_params.get("case_page", 1))
             case_page_size = int(request.query_params.get("case_page_size", 20))

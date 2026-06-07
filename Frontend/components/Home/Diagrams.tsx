@@ -1,15 +1,10 @@
 
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
-*/
 
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, RotateCcw, Activity, Cpu, BarChart2, FileText, ShoppingCart, Package, CreditCard, AlertTriangle, Layers, ShieldAlert } from 'lucide-react';
 
-// --- P2P FLOW DIAGRAM (Object-Centric) ---
 export const P2PFlowDiagram: React.FC = () => {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   
@@ -29,7 +24,7 @@ export const P2PFlowDiagram: React.FC = () => {
       </p>
       
       <div className="relative w-full max-w-md h-64 flex items-center justify-between px-4">
-         {/* Connection Lines */}
+         {}
          <div className="absolute inset-x-12 top-1/2 h-0.5 bg-border-primary -translate-y-1/2 z-0">
             <motion.div 
               className="h-full bg-nobel-gold"
@@ -81,7 +76,6 @@ export const P2PFlowDiagram: React.FC = () => {
   );
 };
 
-// --- ANOMALY DETECTION DIAGRAM (ML Pipeline) ---
 export const AnomalyDetectionDiagram: React.FC = () => {
   const [step, setStep] = useState(0);
 
@@ -101,7 +95,7 @@ export const AnomalyDetectionDiagram: React.FC = () => {
 
       <div className="relative w-full max-w-lg h-56 bg-bg-secondary rounded-lg shadow-inner overflow-hidden mb-6 border border-border-primary flex items-center justify-center gap-6 p-4">
         
-        {/* Input Stage */}
+        {}
         <div className="flex flex-col items-center gap-2">
             <div className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-colors duration-500 ${step === 0 ? 'border-nobel-gold bg-nobel-gold/10' : 'border-border-primary bg-bg-primary'}`}>
                 <Activity size={20} className={step === 0 ? 'text-nobel-gold' : 'text-text-secondary'} />
@@ -111,7 +105,7 @@ export const AnomalyDetectionDiagram: React.FC = () => {
 
         <motion.div animate={{ opacity: step >= 1 ? 1 : 0.3 }}>→</motion.div>
 
-        {/* Feature Eng Stage */}
+        {}
         <div className="flex flex-col items-center gap-2">
             <div className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-colors duration-500 ${step === 1 ? 'border-nobel-gold bg-nobel-gold/10' : 'border-border-primary bg-bg-primary'}`}>
                 <Layers size={20} className={step === 1 ? 'text-nobel-gold' : 'text-text-secondary'} />
@@ -121,7 +115,7 @@ export const AnomalyDetectionDiagram: React.FC = () => {
 
         <motion.div animate={{ opacity: step >= 2 ? 1 : 0.3 }}>→</motion.div>
 
-        {/* Ensemble Stage */}
+        {}
         <div className="flex flex-col items-center gap-2">
              <div className={`w-20 h-20 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-colors duration-500 relative overflow-hidden ${step === 2 ? 'border-text-primary bg-text-primary text-bg-primary' : 'border-border-primary bg-bg-primary'}`}>
                 <Cpu size={24} className={step === 2 ? 'text-nobel-gold animate-pulse' : 'text-text-secondary'} />
@@ -137,7 +131,7 @@ export const AnomalyDetectionDiagram: React.FC = () => {
 
         <motion.div animate={{ opacity: step >= 3 ? 1 : 0.3 }}>→</motion.div>
 
-        {/* Alert Stage */}
+        {}
         <div className="flex flex-col items-center gap-2">
             <div className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-colors duration-500 ${step === 3 ? 'border-red-500 bg-red-500/10' : 'border-border-primary bg-bg-primary'}`}>
                 {step === 3 ? (
@@ -160,7 +154,6 @@ export const AnomalyDetectionDiagram: React.FC = () => {
   );
 };
 
-// --- DETECTION ACCURACY CHART ---
 export const DetectionAccuracyDiagram: React.FC = () => {
     const [model, setModel] = useState<'Standard' | 'Ensemble' | 'DeepLearning'>('Ensemble');
     
@@ -202,7 +195,7 @@ export const DetectionAccuracyDiagram: React.FC = () => {
                    {[...Array(5)].map((_, i) => <div key={i} className="w-full h-[1px] bg-stone-400"></div>)}
                 </div>
 
-                {/* Accuracy Bar */}
+                {}
                 <div className="w-20 flex flex-col justify-end items-center h-full z-10">
                     <div className="flex-1 w-full flex items-end justify-center relative mb-3">
                         <div className="absolute -top-5 w-full text-center text-xs font-mono text-stone-400 font-bold bg-stone-900/90 py-1 px-2 rounded backdrop-blur-sm border border-stone-700/50 shadow-sm">{currentData.accuracy}%</div>
@@ -216,7 +209,7 @@ export const DetectionAccuracyDiagram: React.FC = () => {
                     <div className="h-6 flex items-center text-[10px] font-bold text-stone-500 uppercase tracking-wider">Accuracy</div>
                 </div>
 
-                {/* Recall Bar */}
+                {}
                 <div className="w-20 flex flex-col justify-end items-center h-full z-10">
                      <div className="flex-1 w-full flex items-end justify-center relative mb-3">
                         <div className="absolute -top-5 w-full text-center text-xs font-mono text-nobel-gold font-bold bg-stone-900/90 py-1 px-2 rounded backdrop-blur-sm border border-nobel-gold/30 shadow-sm">{currentData.recall}%</div>

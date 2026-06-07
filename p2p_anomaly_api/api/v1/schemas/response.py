@@ -1,12 +1,9 @@
-"""
-Pydantic schemas for API responses.
-"""
+
 
 from typing import List, Dict, Optional
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel
-
 
 class AnomalyFlags(BaseModel):
     price_mismatch: bool
@@ -16,7 +13,6 @@ class AnomalyFlags(BaseModel):
     duplicate_invoice: bool
     unauthorized_vendor: bool
     quantity_variance: bool
-
 
 class AnomalyCase(BaseModel):
     case_id: str
@@ -29,7 +25,6 @@ class AnomalyCase(BaseModel):
     detected_at: datetime
     flags: AnomalyFlags
 
-
 class Summary(BaseModel):
     total_cases: int
     anomalous_cases: int
@@ -40,13 +35,11 @@ class Summary(BaseModel):
     delta_anomaly_rate_pct: float = 0.0
     delta_avg_processing_time_pct: float = 0.0
 
-
 class PhaseFlow(BaseModel):
     phase: str
     total_cases: int
     anomalies: int
     anomaly_rate: float
-
 
 class RealTimeFeedItem(BaseModel):
     case_id: str
@@ -56,7 +49,6 @@ class RealTimeFeedItem(BaseModel):
     severity_label: str
     detected_at: datetime
 
-
 class AnalysisResponse(BaseModel):
     run_id: UUID
     summary: Summary
@@ -65,7 +57,6 @@ class AnalysisResponse(BaseModel):
     severity_counts: Dict[str, int]
     process_flow_map: List[PhaseFlow]
     real_time_feed: List[RealTimeFeedItem]
-
 
 class RunListItem(BaseModel):
     run_id: UUID
@@ -77,13 +68,11 @@ class RunListItem(BaseModel):
     status: str
     duration_ms: Optional[int]
 
-
 class CaseListResponse(BaseModel):
     items: List[AnomalyCase]
     total: int
     page: int
     page_size: int
-
 
 class HealthResponse(BaseModel):
     status: str
@@ -91,17 +80,16 @@ class HealthResponse(BaseModel):
     models_loaded: bool
     version: str
 
-
 class AppendResponse(BaseModel):
-    """Response for POST /runs/{run_id}/append and /runs/{run_id}/append/file."""
+                                                                                 
     run_id: UUID
-    # How many cases were in the appended batch
+                                               
     appended_cases: int
-    updated_cases: int          # cases whose case_id already existed in the run
-    new_cases: int              # brand-new case_ids added to the run
-    # Anomalies found only in the new batch (top 50)
+    updated_cases: int                                                          
+    new_cases: int                                                   
+                                                    
     new_anomalies: List[AnomalyCase]
-    # Run summary recomputed over ALL cases (original + new)
+                                                            
     updated_summary: Summary
     process_flow_map: List[PhaseFlow]
     real_time_feed: List[RealTimeFeedItem]

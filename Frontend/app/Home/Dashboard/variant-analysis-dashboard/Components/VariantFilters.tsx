@@ -75,7 +75,7 @@ const VariantFilters = ({
       </div>
 
       <div className="space-y-6">
-        {/* Date Range Filter */}
+        {}
         <div>
           <label className="block font-sans text-sm font-medium text-text-primary mb-2">
             Time Period
@@ -130,7 +130,7 @@ const VariantFilters = ({
           </div>
         </div>
 
-        {/* Frequency Range Filter */}
+        {}
         <div>
           <label className="block font-sans text-sm font-medium text-text-primary mb-2">
             Frequency Range: {frequencyMin}% - {frequencyMax}%
@@ -167,7 +167,7 @@ const VariantFilters = ({
           </div>
         </div>
 
-        {/* Conformance Threshold Filter */}
+        {}
         <div>
           <label className="block font-sans text-sm font-medium text-text-primary mb-2">
             Conformance Threshold: {conformanceThreshold}%
@@ -192,7 +192,7 @@ const VariantFilters = ({
           </p>
         </div>
 
-        {/* Quick Filter Buttons */}
+        {}
         <div>
           <label className="block font-sans text-sm font-medium text-text-primary mb-2">
             Quick Filters

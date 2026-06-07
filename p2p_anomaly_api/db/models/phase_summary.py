@@ -1,12 +1,9 @@
-"""
-ORM model for phase summaries.
-"""
+
 
 import uuid
 from sqlalchemy import Column, String, Integer, Numeric, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from db.models import Base
-
 
 class PhaseSummary(Base):
     __tablename__ = "phase_summaries"

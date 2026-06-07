@@ -12,7 +12,6 @@ spec:
   selector:
     matchLabels:
       app: nodejs
-  # Rolling update with zero downtime: never drop below desired count.
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -27,7 +26,6 @@ spec:
       containers:
         - name: gateway
           image: p2p-gateway:latest
-          # Use the locally built/loaded image (flash-drive demo); never pull.
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -37,7 +35,6 @@ spec:
                 name: nodejs-config
             - secretRef:
                 name: nodejs-secret
-          # Resource requests are REQUIRED for the HPA to compute CPU utilisation.
           resources:
             requests:
               cpu: 100m
@@ -45,15 +42,12 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
-          # --- Self-healing probes ---
-          # startup: give the process time to boot before liveness kicks in.
           startupProbe:
             httpGet:
               path: /health
               port: 3001
             periodSeconds: 5
             failureThreshold: 30
-          # liveness: restart the container if it stops responding (deadlock/hang).
           livenessProbe:
             httpGet:
               path: /health
@@ -62,7 +56,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 3
             failureThreshold: 3
-          # readiness: pull the pod out of the Service until it can serve traffic.
           readinessProbe:
             httpGet:
               path: /health
@@ -72,7 +65,6 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
 ---
-# Keep at least one pod available during voluntary disruptions (node drains, etc.)
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

@@ -1,7 +1,5 @@
-"""
-SLA compliance computation service.
-SLA threshold: configurable per event log (default 21 days).
-"""
+
+   
 import logging
 
 from django.conf import settings
@@ -10,13 +8,9 @@ from apps.event_logs.models import EventLog, P2PCase
 
 logger = logging.getLogger(__name__)
 
-
 def compute_sla_metrics(event_log: EventLog) -> None:
-    """
-    Re-evaluate SLA breaches for all cases in the log.
-    Updates P2PCase.sla_breached based on the event log's sla_threshold_days.
-    This is idempotent — safe to call multiple times.
-    """
+
+       
     sla_threshold = event_log.sla_threshold_days or getattr(
         settings, "SLA_DEFAULT_DAYS", 21
     )
@@ -46,12 +40,9 @@ def compute_sla_metrics(event_log: EventLog) -> None:
         }
     )
 
-
 def get_sla_compliance_rate(event_log: EventLog) -> float:
-    """
-    sla_compliance_rate = (cases_within_sla / total_cases) * 100
-    Returns 0.0 if no cases with cycle time data.
-    """
+
+       
     cases = event_log.cases.filter(cycle_time_days__isnull=False)
     total = cases.count()
     if total == 0:

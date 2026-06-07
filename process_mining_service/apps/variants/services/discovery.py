@@ -1,7 +1,5 @@
-"""
-Variant discovery service.
-Uses pm4py to discover process variants and assigns human-readable names.
-"""
+
+   
 import logging
 from collections import defaultdict
 from typing import Optional
@@ -11,11 +9,8 @@ from apps.variants.models import ProcessVariant
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Human-readable variant name rules (deterministic, no LLM)
-# ---------------------------------------------------------------------------
 VARIANT_NAME_RULES = [
-    # (must_contain, must_not_contain, name)
+                                            
     (["Manager Approval"], ["Budget Approval"], "Manual Approval"),
     (["Budget Approval", "Manager Approval"], [], "Dual Approval"),
     (["Budget Approval"], ["Manager Approval"], "Budget-Only Approval"),
@@ -25,29 +20,24 @@ VARIANT_NAME_RULES = [
     (["Goods Receipt Verification"], ["Invoice Processing"], "Goods-Only"),
 ]
 
-
 def _name_variant(activity_sequence: list[str]) -> str:
-    """Apply the naming rule table to assign a human-readable variant name."""
+                                                                              
     seq_set = set(activity_sequence)
     for must_have, must_not_have, name in VARIANT_NAME_RULES:
         if all(a in seq_set for a in must_have) and not any(a in seq_set for a in must_not_have):
             return name
-    # Fallback: use first and last activity
+                                           
     if activity_sequence:
         return f"{activity_sequence[0]} → {activity_sequence[-1]}"
     return "Unknown Variant"
 
-
 def _try_pm4py_discovery(event_log: EventLog) -> Optional[list[ProcessVariant]]:
-    """
-    Attempt pm4py-based variant discovery.
-    Returns list of ProcessVariant objects (unsaved) or None on failure.
-    """
+
+       
     try:
         import pm4py
         import pandas as pd
 
-        # Build a pandas DataFrame from stored events
         events = list(
             P2PEvent.objects.filter(case__event_log=event_log)
             .values("case__case_id", "activity", "timestamp")
@@ -84,7 +74,6 @@ def _try_pm4py_discovery(event_log: EventLog) -> Optional[list[ProcessVariant]]:
             case_count = len(cases_in_variant)
             freq_pct = (case_count / total_cases) * 100.0
 
-            # Extract case IDs from pm4py Trace objects
             case_ids_in_variant = []
             for c in cases_in_variant:
                 if hasattr(c, "attributes"):
@@ -94,13 +83,11 @@ def _try_pm4py_discovery(event_log: EventLog) -> Optional[list[ProcessVariant]]:
                 if cid:
                     case_ids_in_variant.append(cid)
 
-            # Update P2PCase.variant_id so conformance checking can find cases by variant
             if case_ids_in_variant:
                 P2PCase.objects.filter(
                     case_id__in=case_ids_in_variant, event_log=event_log
                 ).update(variant_id=idx)
 
-            # Duration from P2PCase using the actual case IDs for this variant
             if case_ids_in_variant:
                 durations = list(
                     P2PCase.objects.filter(
@@ -124,31 +111,27 @@ def _try_pm4py_discovery(event_log: EventLog) -> Optional[list[ProcessVariant]]:
                     frequency_pct=round(freq_pct, 2),
                     case_count=case_count,
                     avg_duration_days=round(avg_dur, 2),
-                    conformance_score=100.0,  # updated by conformance service
-                    anomaly_rate_pct=0.0,  # updated by severity service
+                    conformance_score=100.0,                                  
+                    anomaly_rate_pct=0.0,                               
                 )
             )
 
         return variants_list
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:                                
         logger.warning(
             {"event": "pm4py_discovery_failed", "error": str(exc),
              "event_log_id": str(event_log.id)}
         )
         return None
 
-
 def _fallback_discovery(event_log: EventLog) -> list[ProcessVariant]:
-    """
-    Pure-Python variant discovery: groups cases by their ordered activity sequence.
-    Used when pm4py is unavailable or fails.
-    """
+
+       
     from collections import Counter
 
     total_cases = event_log.cases.count() or 1
 
-    # Build a sequence per case
     case_sequences: dict[str, list[str]] = defaultdict(list)
     for evt in (
         P2PEvent.objects.filter(case__event_log=event_log)
@@ -157,7 +140,6 @@ def _fallback_discovery(event_log: EventLog) -> list[ProcessVariant]:
     ):
         case_sequences[evt["case__case_id"]].append(evt["activity"])
 
-    # Group by sequence tuple
     seq_groups: dict[tuple, list[str]] = defaultdict(list)
     for case_id, seq in case_sequences.items():
         seq_groups[tuple(seq)].append(case_id)
@@ -177,7 +159,6 @@ def _fallback_discovery(event_log: EventLog) -> list[ProcessVariant]:
         )
         avg_dur = sum(durations) / len(durations) if durations else 0.0
 
-        # Update P2PCase.variant_id
         P2PCase.objects.filter(case_id__in=case_ids, event_log=event_log).update(
             variant_id=idx
         )
@@ -199,25 +180,20 @@ def _fallback_discovery(event_log: EventLog) -> list[ProcessVariant]:
 
     return variants_list
 
-
 def discover_variants(event_log: EventLog) -> list[ProcessVariant]:
-    """
-    Discover process variants and persist them as ProcessVariant rows.
-    First tries pm4py; falls back to pure-Python grouping.
-    Returns the list of saved ProcessVariant objects.
-    """
+
+       
     logger.info(
         {"event": "variant_discovery_started", "event_log_id": str(event_log.id)}
     )
 
-    # Clear old variants for this log
     ProcessVariant.objects.filter(event_log=event_log).delete()
 
     variants = _try_pm4py_discovery(event_log) or _fallback_discovery(event_log)
 
     if variants:
         ProcessVariant.objects.bulk_create(variants, ignore_conflicts=True)
-        # Re-fetch to get IDs
+                             
         variants = list(ProcessVariant.objects.filter(event_log=event_log))
 
     logger.info(

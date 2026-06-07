@@ -1,4 +1,3 @@
-# Postgres for the Django process-mining service. StatefulSet + headless Service.
 apiVersion: v1
 kind: Service
 metadata:
@@ -7,7 +6,7 @@ metadata:
   labels:
     app: django-postgres
 spec:
-  clusterIP: None        # headless — required by the StatefulSet
+  clusterIP: None
   selector:
     app: django-postgres
   ports:

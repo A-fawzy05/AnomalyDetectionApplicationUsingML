@@ -1,11 +1,11 @@
-/** @type {import('tailwindcss').Config} */
+
 module.exports = {
   darkMode: ['class'],
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './styles/**/*.{css}',
-    // include any other directories you may add (pages/, src/, etc.)
+    
   ],
   theme: {
     container: {
@@ -17,54 +17,54 @@ module.exports = {
     },
     extend: {
       colors: {
-        border: 'var(--color-border)', /* slate-600 */
-        input: 'var(--color-input)', /* slate-700 */
-        ring: 'var(--color-ring)', /* cyan-500 */
-        background: 'var(--color-background)', /* slate-900 */
-        foreground: 'var(--color-foreground)', /* slate-50 */
+        border: 'var(--color-border)', 
+        input: 'var(--color-input)', 
+        ring: 'var(--color-ring)', 
+        background: 'var(--color-background)', 
+        foreground: 'var(--color-foreground)', 
         primary: {
-          DEFAULT: 'var(--color-primary)', /* blue-600 */
-          foreground: 'var(--color-primary-foreground)', /* white */
+          DEFAULT: 'var(--color-primary)', 
+          foreground: 'var(--color-primary-foreground)', 
         },
         secondary: {
-          DEFAULT: 'var(--color-secondary)', /* slate-600 */
-          foreground: 'var(--color-secondary-foreground)', /* slate-50 */
+          DEFAULT: 'var(--color-secondary)', 
+          foreground: 'var(--color-secondary-foreground)', 
         },
         accent: {
-          DEFAULT: 'var(--color-accent)', /* cyan-500 */
-          foreground: 'var(--color-accent-foreground)', /* slate-900 */
+          DEFAULT: 'var(--color-accent)', 
+          foreground: 'var(--color-accent-foreground)', 
         },
         destructive: {
-          DEFAULT: 'var(--color-destructive)', /* red-600 */
-          foreground: 'var(--color-destructive-foreground)', /* red-50 */
+          DEFAULT: 'var(--color-destructive)', 
+          foreground: 'var(--color-destructive-foreground)', 
         },
         muted: {
-          DEFAULT: 'var(--color-muted)', /* slate-700 */
-          foreground: 'var(--color-muted-foreground)', /* slate-400 */
+          DEFAULT: 'var(--color-muted)', 
+          foreground: 'var(--color-muted-foreground)', 
         },
         card: {
-          DEFAULT: 'var(--color-card)', /* slate-800 */
-          foreground: 'var(--color-card-foreground)', /* slate-200 */
+          DEFAULT: 'var(--color-card)', 
+          foreground: 'var(--color-card-foreground)', 
         },
         popover: {
-          DEFAULT: 'var(--color-popover)', /* slate-800 */
-          foreground: 'var(--color-popover-foreground)', /* slate-200 */
+          DEFAULT: 'var(--color-popover)', 
+          foreground: 'var(--color-popover-foreground)', 
         },
         success: {
-          DEFAULT: 'var(--color-success)', /* emerald-600 */
-          foreground: 'var(--color-success-foreground)', /* green-50 */
+          DEFAULT: 'var(--color-success)', 
+          foreground: 'var(--color-success-foreground)', 
         },
         warning: {
-          DEFAULT: 'var(--color-warning)', /* amber-600 */
-          foreground: 'var(--color-warning-foreground)', /* amber-50 */
+          DEFAULT: 'var(--color-warning)', 
+          foreground: 'var(--color-warning-foreground)', 
         },
         error: {
-          DEFAULT: 'var(--color-error)', /* red-600 */
-          foreground: 'var(--color-error-foreground)', /* red-50 */
+          DEFAULT: 'var(--color-error)', 
+          foreground: 'var(--color-error-foreground)', 
         },
         surface: {
-          elevated: 'var(--color-surface-elevated)', /* slate-700 */
-          overlay: 'var(--color-surface-overlay)', /* slate-800 */
+          elevated: 'var(--color-surface-elevated)', 
+          overlay: 'var(--color-surface-overlay)', 
         },
         text: {
           primary: 'var(--color-text-primary)',

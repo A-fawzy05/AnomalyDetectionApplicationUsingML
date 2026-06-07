@@ -1,6 +1,4 @@
-"""
-Endpoint for initiating event log analysis.
-"""
+
 
 import time
 import logging
@@ -31,7 +29,6 @@ from scoring.merger import merge_scores
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 @router.post("/analyze", response_model=AnalysisResponse)
 async def analyze_event_log(
     file: UploadFile = File(...),
@@ -40,31 +37,26 @@ async def analyze_event_log(
     identity: Identity = Depends(require_roles("admin", "analyst")),
 ):
     start_time_ts = time.time()
-    
-    # 1. Validate file size
+
     content = await file.read()
     file_size = len(content)
     if file_size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File too large")
     await file.seek(0)
 
-    # 2. Create analysis_run record
     detected_type = file_type or _detect_file_type(file.filename)
     run = await run_repository.create_run(db, file.filename, detected_type, file_size)
     run_id = run.run_id
     
     try:
-        # 3. Update status → 'processing'
+                                         
         await run_repository.update_run_status(db, run_id, "processing")
-        
-        # 4. Ingest file → canonical DataFrame
+
         ingester = _get_ingester(detected_type)
         try:
             df = ingester.ingest(file.file)
         except ValueError as ve:
-            # Ingesters signal bad/malformed input with ValueError. Surface it as
-            # an ingestion error so the endpoint returns 422 (per the API contract)
-            # rather than a generic 500.
+
             raise IngestionError(str(ve))
         
         n_cases = df['case_id'].nunique()
@@ -84,72 +76,57 @@ async def analyze_event_log(
                 f'{n_events/n_cases:.1f}. Expected > 4. '
                 f'Orphan events may have been created.'
             )
-        
-        # 5. Persist raw events to DB
+
         await event_log_repository.bulk_insert_events(db, run_id, df)
-        
-        # 6. Build IF case features (2117 cols)
+
         X_case = build_case_features(df)
-        
-        # 7. Build LSTM sequences
+
         df_events = sequence_features.prep_event_features(df)
         encoded   = lstm_autoencoder.encode_events(df_events)
         X_seq, case_ids, lengths = lstm_autoencoder.build_sequences(df_events, encoded)
-        
-        # 8. Run IF (pipeline: scaler → var_selector → IF)
+
         if_scores, if_labels = isolation_forest.predict_with_labels(X_case)
-        
-        # 9. Run LSTM (scores already capped inside score_sequences)
+
         lstm_scores = lstm_autoencoder.score_sequences(X_seq, lengths, case_ids)
         lstm_scores = lstm_autoencoder.assign_flags(lstm_scores)
-        
-        # 10. Build phase summary for 3-way match
+
         phase_summary = build_phase_summary(df)
-        
-        # 11. Fuse scores
+
         merged = merge_scores(X_case, if_scores, lstm_scores, phase_summary)
-        
-        # 11.5. Calibrate thresholds for adaptive anomaly detection
+
         from scoring.merger import calibrate_thresholds
         adaptive_if_threshold, adaptive_lstm_threshold = calibrate_thresholds(
             if_scores          = if_scores,
             lstm_scores        = lstm_scores["lstm_case_score"].values,
             if_train_threshold = isolation_forest.get_threshold(),
             lstm_train_threshold = lstm_autoencoder.get_thresholds()["case"],
-            target_anomaly_rate  = 0.05,   # flag at most 5% of any batch
+            target_anomaly_rate  = 0.05,                                 
         )
-        
-        # 12. Apply anomaly type labels and severity with adaptive thresholds
+
         labeled = apply_labels(merged, df, 
             if_threshold=adaptive_if_threshold,
             lstm_threshold=adaptive_lstm_threshold
         )
-        # Clean NaN values for JSON/DB compatibility
+                                                    
         labeled = labeled.where(pd.notnull(labeled), None)
-        
-        # 12.5. Restore vendor data from original ingested DataFrame
-        # This fixes the vendor preservation issue by directly mapping vendor from original data
+
         if "vendor" in df.columns and "case_id" in labeled.columns:
-            # Create vendor mapping from original ingested data
+                                                               
             vendor_map = df.groupby("case_id")["vendor"].first()
-            # Map vendor data to labeled results
+                                                
             labeled["supplier"] = labeled["case_id"].map(vendor_map)
-        
-        # 13. Build process flow map
+
         flow_map = build_process_flow_map(df, labeled)
-        
-        # 14. Compute summary
+
         summary = await _compute_summary(labeled, db)
-        
-        # 15. Persist results
+
         case_rows = _prepare_case_rows(labeled)
         await case_repository.bulk_insert_cases(db, run_id, case_rows)
         await phase_repository.bulk_insert_phases(db, run_id, flow_map)
         
         duration_ms = int((time.time() - start_time_ts) * 1000)
         await run_repository.update_run_results(db, run_id, summary, duration_ms)
-        
-        # 16. Return response
+
         return build_analysis_response(run_id, labeled, flow_map, summary)
 
     except Exception as e:
@@ -159,13 +136,11 @@ async def analyze_event_log(
             raise HTTPException(status_code=422, detail=str(e))
         raise HTTPException(status_code=500, detail="Internal analysis error")
 
-
 def _detect_file_type(filename: str) -> str:
     if filename.endswith(".csv"): return "csv"
     if filename.endswith(".xes"): return "xes"
     if filename.endswith(".json"): return "ocel2_json"
     raise UnsupportedFileTypeError(f"Unsupported file extension for {filename}")
-
 
 def _get_ingester(file_type: str):
     if file_type == "csv": return CSVIngester()
@@ -173,16 +148,11 @@ def _get_ingester(file_type: str):
     if file_type == "ocel2_json": return OCEL2Ingester()
     raise UnsupportedFileTypeError(f"Unsupported file type: {file_type}")
 
-
 def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build per-case phase presence flags.
-    If a phase is absent from the ENTIRE dataset, do not count its
-    absence as a compliance failure — it may not be part of this
-    process variant.
-    """
+
+       
     def map_phase(activity: str) -> str:
-        # Exact match first (OCEL2 activity names)
+                                                  
         EXACT_MAP = {
             'Approve Purchase Order':                   'Purchase Order Creation',
             'Create Purchase Order':                    'Purchase Order Creation',
@@ -198,7 +168,6 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
         if activity in EXACT_MAP:
             return EXACT_MAP[activity]
 
-        # Keyword fallback (BPI 2019 activity names)
         a = str(activity).lower()
         if 'requisition' in a:                                                      return 'Purchase Requisition'
         if 'purchase order' in a or 'srm' in a or 'order item' in a:               return 'Purchase Order Creation'
@@ -214,12 +183,8 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
         lambda s: set(s.dropna().astype(str))
     )
 
-    # Detect which phases are present anywhere in this batch
     all_phases_in_batch = set(tmp["phase"].dropna().unique())
 
-    # Only check for phases that actually exist somewhere in the batch.
-    # If Invoice Verification never appears anywhere, it is not part of
-    # this process — do not penalize its absence per case.
     check_pr  = "Purchase Requisition"    in all_phases_in_batch
     check_po  = "Purchase Order Creation" in all_phases_in_batch
     check_gr  = "Goods Receipt"           in all_phases_in_batch
@@ -234,8 +199,6 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
         has_inv  = int("Invoice Verification"    in phases)
         has_pay  = int("Payment Processing"      in phases)
 
-        # Only count missing steps for phases that exist in this batch.
-        # A phase absent from the entire dataset is not a compliance failure
         missing = 0
         if check_pr  and not has_pr:  missing += 1
         if check_po  and not has_po:  missing += 1
@@ -255,12 +218,9 @@ def build_phase_summary(df: pd.DataFrame) -> pd.DataFrame:
 
     return pd.DataFrame(rows)
 
-
 def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
-    """
-    Computes anomaly rates per process phase based on actual activities performed per case.
-    """
-    # Activity → canonical phase name used in the process_flow list
+
+
     ACTIVITY_TO_PHASE = {
         'Create Request for Quotation':             'Create Request for Quotation',
         'Create Purchase Requisition':              'Create Request for Quotation',
@@ -282,7 +242,6 @@ def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
         'Execute Payment',
     ]
 
-    # Per-case set of canonical phases *actually performed*
     tmp = df.copy()
     tmp['_phase'] = tmp['activity'].map(ACTIVITY_TO_PHASE)
     case_phases = (
@@ -291,24 +250,21 @@ def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
            .apply(set)
     )
 
-    # Build per-phase case_id sets from the mapping
     phase_to_cases: dict[str, set] = {p: set() for p in process_flow}
     for case_id, phases in case_phases.items():
         for p in phases:
             if p in phase_to_cases:
                 phase_to_cases[p].add(case_id)
 
-    # Anomalous case_id set
     anomalous_ids = set(results_df.loc[results_df['anomaly_type'].notna(), 'case_id'])
 
     flow_map = []
-    cumulative = None   # tracks cases that reached each previous phase (funnel)
+    cumulative = None                                                           
     for phase in process_flow:
         phase_case_ids = phase_to_cases.get(phase, set())
         if not phase_case_ids:
             continue
 
-        # Funnel: each phase = cases that did THIS phase AND all prior phases
         if cumulative is None:
             cumulative = phase_case_ids
         else:
@@ -326,31 +282,26 @@ def build_process_flow_map(df: pd.DataFrame, results_df: pd.DataFrame) -> list:
 
     return flow_map
 
-
 async def _compute_summary(results_df: pd.DataFrame, session=None) -> dict:
     total_cases = len(results_df)
     anomalous_cases = len(results_df[results_df["anomaly_type"].notna()])
-    
-    # Check for duration column
+
     avg_proc = 0.0
     if "case_duration_hours" in results_df:
         avg_proc = results_df["case_duration_hours"].mean() / 24.0
-    
-    # Initialize delta values
+
     delta_total_cases_pct = 0.0
     delta_anomalous_cases_pct = 0.0
     delta_anomaly_rate_pct = 0.0
     delta_avg_processing_time_pct = 0.0
-    
-    # Calculate deltas if we have a session and previous runs
+
     if session is not None:
         from db.repositories.run_repository import get_latest_completed_run
-        
-        # Get previous run for delta calculations
+
         previous_run = await get_latest_completed_run(session)
         
         if previous_run is not None:
-            # Calculate percentage changes
+                                          
             if previous_run.total_cases and previous_run.total_cases > 0:
                 delta_total_cases_pct = ((total_cases - previous_run.total_cases) / previous_run.total_cases) * 100
             
@@ -375,21 +326,20 @@ async def _compute_summary(results_df: pd.DataFrame, session=None) -> dict:
         "delta_avg_processing_time_pct": delta_avg_processing_time_pct
     }
 
-
 def _format_anomaly_type(anomaly_type):
-    """Format anomaly type for API response - handle list types, limit to max 2"""
+                                                                                  
     try:
         if pd.isna(anomaly_type) or anomaly_type is None:
             return None
         elif isinstance(anomaly_type, list):
-            # Limit to maximum 2 anomaly types
+                                              
             if len(anomaly_type) <= 2:
                 if len(anomaly_type) == 1:
                     return anomaly_type[0]
                 else:
                     return " | ".join(anomaly_type)
             else:
-                # Select 2 most critical types based on priority
+                                                                
                 priority_order = [
                     "Three-Way Match Failure",
                     "Price Mismatch", 
@@ -399,18 +349,16 @@ def _format_anomaly_type(anomaly_type):
                     "Temporal Delay",
                     "Quantity Variance"
                 ]
-                
-                # Filter and sort by priority
+
                 filtered_types = [t for t in anomaly_type if t in priority_order]
                 sorted_types = sorted(filtered_types, key=lambda x: priority_order.index(x))
-                
-                # Return top 2
+
                 top_types = sorted_types[:2]
                 return " | ".join(top_types)
         else:
             return anomaly_type
     except (ValueError, TypeError):
-        # Handle array comparison issues
+                                        
         if hasattr(anomaly_type, '__len__') and len(anomaly_type) > 0:
             if isinstance(anomaly_type, (list, tuple)):
                 if len(anomaly_type) <= 2:
@@ -419,7 +367,7 @@ def _format_anomaly_type(anomaly_type):
                     else:
                         return " | ".join(str(x) for x in anomaly_type)
                 else:
-                    # Select 2 most critical types
+                                                  
                     priority_order = [
                         "Three-Way Match Failure",
                         "Price Mismatch", 
@@ -438,7 +386,6 @@ def _format_anomaly_type(anomaly_type):
                 return str(anomaly_type)
         else:
             return None
-
 
 def _prepare_case_rows(results_df: pd.DataFrame) -> list:
     rows = []
@@ -469,9 +416,8 @@ def _prepare_case_rows(results_df: pd.DataFrame) -> list:
         rows.append(case_row)
     return rows
 
-
 def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
-    # Prepare top anomalies
+                           
     anomalies = labeled[labeled["anomaly_type"].notna()].sort_values("severity_score", ascending=False).head(50)
     
     anomaly_cases = []
@@ -497,7 +443,6 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
             }
         })
 
-    # Handle list-based anomaly types for counting
     all_types = []
     for types in labeled["anomaly_type"]:
         try:
@@ -507,7 +452,7 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
                 else:
                     all_types.append(types)
         except (ValueError, TypeError):
-            # Handle array comparison issues
+                                            
             if hasattr(types, '__len__') and len(types) > 0:
                 if isinstance(types, (list, tuple)):
                     all_types.extend(types)
@@ -543,7 +488,6 @@ def build_analysis_response(run_id, labeled, flow_map, summary) -> dict:
         "process_flow_map": flow_map,
         "real_time_feed": real_time_feed
     }
-
 
 @router.get("/debug/ocel2-qualifiers")
 async def debug_qualifiers(file: UploadFile):

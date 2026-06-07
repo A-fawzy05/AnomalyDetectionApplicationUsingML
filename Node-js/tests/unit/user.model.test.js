@@ -1,11 +1,4 @@
-/**
- * Unit tests for models/User.js instance methods.
- * These operate on un-persisted documents, so no DB connection is needed.
- *
- * NOTE: password hashing happens in the controller (bcrypt.hash on signup),
- * NOT in a model pre-save hook — so comparePassword is tested against a hash
- * we create here, mirroring what the controller stores.
- */
+
 const bcrypt = require('bcryptjs');
 const User = require('../../models/User');
 
@@ -42,7 +35,7 @@ describe('User OTP helpers', () => {
   });
 
   test('teams field exists on the schema (bug-fix regression)', () => {
-    // Team membership must live in its own array, not in `organizations`.
+    
     expect(User.schema.path('teams')).toBeDefined();
   });
 });
